@@ -1,7 +1,22 @@
 import type { TemplateId } from "@/lib/templates";
 
 /** Beginner-facing look — maps to template tuning + auto style hints for AI prompts. */
-export type VisualStyleId = "product" | "dark-premium" | "warm-shop" | "paper-layout";
+export type VisualStyleId =
+  | "product"
+  | "dark-premium"
+  | "warm-shop"
+  | "info-poster"
+  | "brand-fit"
+  | "brand-campaign"
+  | "paper-layout";
+
+export function isBrandVisualStyle(id: VisualStyleId): boolean {
+  return id === "brand-fit" || id === "brand-campaign";
+}
+
+export function isCampaignVisualStyle(id: VisualStyleId): boolean {
+  return id === "brand-campaign";
+}
 
 export type VisualStyleDef = {
   id: VisualStyleId;
@@ -36,6 +51,27 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
     usesCompositor: false,
     promptHint:
       "Warm inviting local-shop promotional mood: cozy lighting, approachable retail atmosphere. Emphasize shop name and offer when provided.",
+  },
+  {
+    id: "info-poster",
+    icon: "📋",
+    templateId: "info-poster",
+    usesCompositor: false,
+    promptHint: "",
+  },
+  {
+    id: "brand-fit",
+    icon: "🔗",
+    templateId: "brand-fit",
+    usesCompositor: false,
+    promptHint: "",
+  },
+  {
+    id: "brand-campaign",
+    icon: "🎯",
+    templateId: "brand-campaign",
+    usesCompositor: false,
+    promptHint: "",
   },
   {
     id: "paper-layout",

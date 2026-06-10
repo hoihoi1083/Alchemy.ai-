@@ -1,9 +1,10 @@
 import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import type { BrandProfile } from "@/lib/brand-profile";
 import {
-  buildPromoImagePrompt,
-  buildReferenceConceptImagePrompt,
   buildPromptVariables,
+  buildWizardImagePrompt,
+  resolveImagePromptMode,
 } from "@/lib/prompt-variables";
 import type { PromptMarket, SubjectFraming } from "@/lib/prompt-variables";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
@@ -153,9 +154,30 @@ export async function POST(request: Request) {
       extra: promptExtra,
     });
 
-    const builtPrompt = useReferenceConcept
-      ? buildReferenceConceptImagePrompt(vars)
-      : buildPromoImagePrompt(vars);
+    const visualStyle = (formData.get("visual_style") as string | null)?.trim() || "product";
+    const brandProfileRaw = (formData.get("brand_profile") as string | null)?.trim() || "";
+    let brandProfile: BrandProfile | null = null;
+    if (brandProfileRaw) {
+      try {
+        brandProfile = JSON.parse(brandProfileRaw) as BrandProfile;
+      } catch {
+        return NextResponse.json({ error: "Invalid brand profile data." }, { status: 400 });
+      }
+    }
+    const promptMode = resolveImagePromptMode(
+      visualStyle,
+      useReferenceConcept ? "reference-concept" : creativeMode,
+    );
+    if (
+      (promptMode === "brand-fit" || visualStyle === "brand-campaign") &&
+      !brandProfile?.businessName
+    ) {
+      return NextResponse.json(
+        { error: "Analyze the brand first (website or social hint)." },
+        { status: 400 },
+      );
+    }
+    const builtPrompt = buildWizardImagePrompt(vars, promptMode, brandProfile);
     const finalPrompt = clientPrompt || builtPrompt;
 
     try {

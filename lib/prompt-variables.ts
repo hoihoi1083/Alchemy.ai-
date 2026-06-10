@@ -1,3 +1,5 @@
+import type { BrandProfile } from "@/lib/brand-profile";
+import { brandProfilePromptBlock } from "@/lib/brand-profile";
 import {
   applyTemplate,
   getTemplate,
@@ -161,6 +163,137 @@ function promoTypographyHint(vars: PromptVariables, copyFromReference?: boolean)
   }
   const product = vars.product?.trim() || "the product";
   return `${langHint} Add short boutique ad headlines suited to ${product} — hook plus supporting line, woven into the layout.${refNote}`;
+}
+
+function parseSellingPointBullets(subline?: string): string[] {
+  if (!subline?.trim()) return [];
+  return subline
+    .split(/\n/)
+    .map((line) => line.replace(/^[\s•\-–]+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+/**
+ * IG info-poster technique (gptsavyy workflow):
+ * category → selling points → simplified copy → single theme → category visuals → premium white → quality check.
+ * Avoids generic overcrowded AI poster look.
+ */
+export function buildInfoPosterImagePrompt(vars: PromptVariables): string {
+  const product = vars.product?.trim() || "the product";
+  const headline = vars.headline?.trim() || product;
+  const bullets = parseSellingPointBullets(vars.subline);
+  const bulletText = bullets.length
+    ? `Supporting bullets (max ${bullets.length}, keep short): ${bullets.join(" · ")}.`
+    : "Add 2–3 very short supporting bullets derived from the product category.";
+  const isEn = vars.market === "en";
+  const langHint = isEn
+    ? "Use clean modern English typography with clear hierarchy."
+    : "Use clean modern Traditional Chinese typography (繁體中文) — spell every character accurately.";
+
+  return joinParts(
+    `Create a premium vertical INFO POSTER for ${product} — NOT a generic AI collage, NOT a dark moody ad.`,
+    `WORKFLOW (follow in order):`,
+    `1) Product category: infer from product name and IMAGE 1 (beauty/skincare, jewelry, food, fashion, wellness, etc.).`,
+    `2) Selling points: use only the most relevant points for THIS single image — do not list everything.`,
+    `3) Copy simplification: ONE main headline theme only; short bullets; generous whitespace — never cram all text into one block.`,
+    `4) Single topic: this image covers one theme — "${headline}". Other points stay as small bullets only.`,
+    bulletText,
+    `5) Category visualization: subtle props/colors that match the category on a clean white backdrop (beauty = minimal botanical accent; jewelry = soft pedestal; food = fresh ingredient hint).`,
+    `6) Premium white style: bright white or soft off-white studio background, soft natural light, editorial e-commerce info graphic like premium IG carousel edu content.`,
+    `7) Quality check: avoid obvious AI poster tells — no overcrowded text, no Canva-style frames, no neon gradients, no watermark, no social UI.`,
+    `Use IMAGE 1 as the real product — keep exact item, colors, materials. Remove old text from input.`,
+    `Layout: product hero ~35% of frame, headline prominent, 2–4 bullet lines with airy negative space, professional IG info-post composition.`,
+    langHint,
+    vars.business ? `Brand footer: ${vars.business}.` : "",
+    vars.offer ? `Optional offer badge: ${vars.offer}.` : "",
+    MARKET_HINTS[vars.market],
+    FRAMING_IMAGE[vars.framing],
+    vars.extra,
+    "Single 9:16 marketing still.",
+  );
+}
+
+import type { CampaignSlidePlan } from "@/lib/campaign-types";
+
+export type ImagePromptMode = "promo-ai" | "reference-concept" | "info-poster" | "brand-fit";
+
+/** Brand-fit: ad styled to match analyzed website/social brand DNA. */
+export function buildBrandFitImagePrompt(
+  vars: PromptVariables,
+  profile: BrandProfile,
+): string {
+  const product = vars.product?.trim() || profile.productCategory || "the product";
+  const theme = joinParts(vars.headline, vars.subline, vars.offer);
+  return joinParts(
+    `Create a vertical social ad for ${product} that MATCHES this brand's existing marketing style — not a generic AI template.`,
+    brandProfilePromptBlock(profile),
+    vars.business ? `Shop name on ad: ${vars.business}.` : "",
+    theme ? `Campaign copy for this ad: ${theme}.` : "",
+    `Use IMAGE 1 as the real product — keep exact item, colors, materials. Remove old overlays from input.`,
+    `Design must feel like it belongs on this brand's Instagram: same mood, color palette, typography energy, and layout style as the brand DNA above.`,
+    promoTypographyHint(vars),
+    `Do NOT look like a one-size-fits-all AI poster. Do NOT ignore the brand's visual mood.`,
+    MARKET_HINTS[vars.market],
+    FRAMING_IMAGE[vars.framing],
+    vars.extra,
+    "Single 9:16 marketing still.",
+  );
+}
+
+export function buildWizardImagePrompt(
+  vars: PromptVariables,
+  mode: ImagePromptMode,
+  brandProfile?: BrandProfile | null,
+): string {
+  if (mode === "reference-concept") return buildReferenceConceptImagePrompt(vars);
+  if (mode === "info-poster") return buildInfoPosterImagePrompt(vars);
+  if (mode === "brand-fit" && brandProfile?.businessName) {
+    return buildBrandFitImagePrompt(vars, brandProfile);
+  }
+  return buildPromoImagePrompt(vars);
+}
+
+export function resolveImagePromptMode(
+  visualStyleId: string,
+  creativeMode: string,
+): ImagePromptMode {
+  if (creativeMode === "reference-concept") return "reference-concept";
+  if (visualStyleId === "info-poster") return "info-poster";
+  if (visualStyleId === "brand-fit" || visualStyleId === "brand-campaign") return "brand-fit";
+  return "promo-ai";
+}
+
+/** One slide in a linked campaign — shared DNA, per-slide headline/composition. */
+export function buildCampaignSlideImagePrompt(
+  vars: PromptVariables,
+  slide: CampaignSlidePlan,
+  plan: { theme: string; visualDna: string },
+  mode: ImagePromptMode,
+  brandProfile: BrandProfile | null | undefined,
+  slideIndex: number,
+  totalSlides: number,
+): string {
+  const slideVars: PromptVariables = {
+    ...vars,
+    headline: slide.headline || vars.headline,
+    subline: slide.subline || vars.subline,
+  };
+  const campaignBlock = joinParts(
+    `LINKED CAMPAIGN (${totalSlides} posts — image ${slideIndex + 1}/${totalSlides}).`,
+    plan.theme ? `Campaign theme: ${plan.theme}.` : "",
+    `Shared visual DNA (match on every slide): ${plan.visualDna}.`,
+    `This slide: ${slide.title} [${slide.role}].`,
+    slide.composition ? `Composition: ${slide.composition}.` : "",
+    "Keep identical color palette, typography style, and brand mood across the series — only message and layout role change.",
+  );
+  const base =
+    mode === "brand-fit" && brandProfile?.businessName
+      ? buildBrandFitImagePrompt(slideVars, brandProfile)
+      : mode === "info-poster"
+        ? buildInfoPosterImagePrompt(slideVars)
+        : buildPromoImagePrompt(slideVars);
+  return joinParts(campaignBlock, base);
 }
 
 /** Nano Banana: new promotional image from product photo + brief (not a template paste). */

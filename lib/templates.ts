@@ -6,6 +6,9 @@ export type TemplateId =
   | "product-reel"
   | "crystal-promo"
   | "shop-promo"
+  | "info-poster"
+  | "brand-fit"
+  | "brand-campaign"
   | "testimonial"
   | "custom";
 
@@ -119,6 +122,73 @@ export const TEMPLATES: MarketingTemplate[] = [
       "Gentle pull-out revealing {{business}} scene, warm lighting, calm promotional vibe, no text overlays, no subtitles",
     negativePrompt:
       "text, subtitles, watermark, speech, voiceover, dialogue, lyrics, chaotic motion, horror, low resolution",
+  },
+  {
+    id: "info-poster",
+    name: "Premium info poster",
+    description:
+      "White-background IG info graphic — single theme, simplified copy, category visuals (anti-generic-AI layout).",
+    icon: "📋",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 24,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Premium white-background vertical info poster for {{product}}. Single theme: {{headline}}. Selling points: {{subline}}. Clean hierarchy, airy layout, category-appropriate accents, not overcrowded.",
+    imageEditPromptTemplate:
+      "Create a premium white/off-white info poster. Keep exact {{product}} from reference. ONE headline theme: {{headline}}. Bullets: {{subline}}. Editorial IG carousel style, generous whitespace, accurate Chinese typography.",
+    videoPromptTemplate:
+      "Gentle push-in on {{product}} info poster, subtle sparkle, stable camera, preserve on-screen text legibility",
+    negativePrompt:
+      "cluttered layout, overcrowded text blocks, dark muddy background, neon gradients, generic AI template frame, watermark, social media UI, blurry illegible text, misspelled characters, cartoon, low quality, speech, voiceover",
+  },
+  {
+    id: "brand-fit",
+    name: "Brand-fit ad",
+    description: "Match analyzed website/social brand DNA — mood, colors, copy tone.",
+    icon: "🔗",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 28,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Vertical ad matching {{business}} brand style for {{product}}. Theme: {{headline}}. {{subline}}. Same visual DNA as their existing marketing.",
+    imageEditPromptTemplate:
+      "Create ad matching this brand's style. Keep exact {{product}} from reference. Headline: {{headline}}. Bullets: {{subline}}. Cohesive with brand colors and mood.",
+    videoPromptTemplate:
+      "Gentle motion on brand-fit {{product}} ad, stable camera, preserve legibility",
+    negativePrompt:
+      "generic AI template, off-brand colors, wrong tone, cluttered layout, watermark, social UI, blurry text, low quality, speech, voiceover",
+  },
+  {
+    id: "brand-campaign",
+    name: "Brand campaign set",
+    description: "Analyze brand → generate 3 linked posts (hero, selling points, offer).",
+    icon: "🎯",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 28,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Linked brand campaign for {{business}} — {{product}}. Slide theme: {{headline}}. {{subline}}. Cohesive 3-post series.",
+    imageEditPromptTemplate:
+      "Brand campaign slide. Keep exact {{product}} from reference. Headline: {{headline}}. {{subline}}. Match analyzed brand DNA across the set.",
+    videoPromptTemplate:
+      "Gentle motion on brand campaign {{product}} ad, stable camera, preserve legibility",
+    negativePrompt:
+      "generic AI template, off-brand colors, inconsistent series style, cluttered layout, watermark, social UI, blurry text, low quality, speech, voiceover",
   },
   {
     id: "testimonial",

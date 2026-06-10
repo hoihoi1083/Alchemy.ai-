@@ -53,6 +53,18 @@ export const en = {
         title: "Warm shop promo",
         description: "Friendly local business / offer vibe",
       },
+      "info-poster": {
+        title: "Premium info poster",
+        description: "White-bg single-theme selling points — anti-generic-AI layout (IG technique)",
+      },
+      "brand-fit": {
+        title: "Brand style analysis",
+        description: "Paste website / IG → AI analyzes brand, then matching ads",
+      },
+      "brand-campaign": {
+        title: "Brand analysis + campaign set",
+        description: "Analyze brand → 3 linked posts (hero / selling points / offer)",
+      },
       "paper-layout": {
         title: "Fixed paper layout (legacy)",
         description: "Exact text on template — not full AI scene generation",
@@ -63,15 +75,72 @@ export const en = {
       "dark-premium":
         "Dark luxury mood with gold highlights — not only crystals; jewelry, watches, skincare, gifts",
       "warm-shop": "Warm inviting shop mood; emphasize business name and offer",
+      "info-poster": "",
+      "brand-fit": "",
+      "brand-campaign": "",
       "paper-layout": "",
     },
+    brandCampaignIntro:
+      "After brand analysis, DeepSeek plans 3 linked posts, then generates each — same brand DNA, different message per slide.",
+    brandFitTitle: "Analyze brand style (do this first)",
+    brandFitIntro:
+      "Paste your site or IG @handle. AI reads content, extracts colors, tone, and layout — then fills fields and generates on-brand ads. You still upload a product photo.",
+    brandWebsiteLabel: "Brand website (recommended)",
+    brandWebsitePlaceholder: "https://yourshop.com",
+    brandSocialLabel: "Social profile (optional)",
+    brandSocialPlaceholder: "@yourbrand or IG profile URL",
+    brandAnalyzeBtn: "Analyze brand",
+    brandAnalyzeBusy: "Analyzing…",
+    infoPosterTechniqueTitle: "IG info-poster technique (built in)",
+    infoPosterTechniqueIntro:
+      "Do not cram all copy on one image. This workflow builds a premium white-background info graphic:",
+    infoPosterTechniqueSteps: [
+      "Product category — infer from name and photo (beauty, jewelry, food…)",
+      "Selling points — one bullet per line in subline, max 3–4",
+      "Simplified copy — headline covers ONE theme only",
+      "Single topic per image — one message per still",
+      "Category visuals — subtle props/colors for the category",
+      "Premium white style — bright white, airy layout, not dark AI look",
+      "Quality check — avoid overcrowded text and generic template frames",
+    ],
+    infoPosterBulletsPlaceholder:
+      "One selling point per line, e.g.:\nBoost daily energy\nEasy to wear\nSubtle premium look",
     requirementsLabel: "Extra requirements (optional)",
     requirementsPlaceholder: "e.g. soft daylight, no hands, streetwear vibe…",
     requirementsPlaceholders: {
       product: "e.g. food photography, white backdrop, fresh skincare look, streetwear…",
       "dark-premium": "e.g. luxury watch mood, perfume dark tones, tea set gold highlights…",
       "warm-shop": "e.g. grand opening, wooden counter, neighborhood shop feel…",
+      "info-poster": "e.g. fresh skincare mood, natural food styling, minimal jewelry pedestal…",
+      "brand-fit": "Filled after analysis; tweak product or scene if needed",
+      "brand-campaign": "Optional campaign theme, e.g. spring launch — 3 posts on benefits",
       "paper-layout": "Paper template uses your exact text — usually leave this empty",
+    },
+    campaignThemeLabel: "Campaign theme (optional)",
+    campaignThemePlaceholder: "e.g. grand opening 3-post series, new product benefits…",
+    imageOutputModeLabel: "How many images?",
+    imageOutputModeHint: "Campaign generates 3 linked posts (~3× image API cost + DeepSeek planning)",
+    imageOutputModes: {
+      single: {
+        title: "Single image",
+        description: "One promo still (default)",
+      },
+      ab: {
+        title: "A / B versions",
+        description: "Two variations — pick your favorite",
+      },
+      campaign: {
+        title: "Campaign set",
+        description: "3 linked posts — hero, selling points, offer",
+      },
+    },
+    campaignPlanLabel: "Campaign outline",
+    campaignGenerating: "Planning and generating campaign set… (~1–3 min)",
+    pickCampaignSlideLabel: "Pick one to continue (or download all)",
+    campaignSlideRoles: {
+      hero: "Hero",
+      "selling-points": "Selling points",
+      offer: "Offer",
     },
     imageCreativeLabel: "How should we create your image?",
     imageCreativeModes: {
@@ -422,6 +491,18 @@ export const en = {
       name: "Shop promo",
       description: "Storefront, service or limited-time offer",
     },
+    "info-poster": {
+      name: "Premium info poster",
+      description: "White IG info graphic — single theme, tight copy, category visuals",
+    },
+    "brand-fit": {
+      name: "Brand style analysis",
+      description: "Ads matched to website/social brand DNA",
+    },
+    "brand-campaign": {
+      name: "Brand campaign set",
+      description: "Analyze brand → 3 linked posts",
+    },
     testimonial: {
       name: "Customer style",
       description: "Warm lifestyle look for reviews",
@@ -445,6 +526,10 @@ export const en = {
     needPrompt: "Upload a photo, or describe what to create in advanced options.",
     imageGenNoUrl: "AI did not return an image URL — check the terminal or try again.",
     needAiImage: "Tap Generate image — do not continue with only your raw upload.",
+    brandUrlRequired: "Enter a brand website or social handle.",
+    brandAnalyzeFailed: "Brand analysis failed — check the URL or DEEPSEEK_API_KEY in .env.local.",
+    campaignFailed: "Campaign generation failed — check DeepSeek balance and FAL_KEY.",
+    brandAnalyzeRequired: "Tap Analyze brand first.",
   },
   pro: {
     back: "← Back",

@@ -11,6 +11,7 @@ import { StepIndicator } from "@/components/StepIndicator";
 import { UploadZone } from "@/components/UploadZone";
 import { VideoCreativeModePicker } from "@/components/VideoCreativeModePicker";
 import { VideoSettingsPanel } from "@/components/VideoSettingsPanel";
+import { ImageOutputModePicker } from "@/components/ImageOutputModePicker";
 import { VisualStylePicker } from "@/components/VisualStylePicker";
 import { WorkflowModePicker } from "@/components/WorkflowModePicker";
 import { useLocale } from "@/components/LocaleProvider";
@@ -31,9 +32,9 @@ import {
   buildMultiAngleVideoPrompt,
   buildNegativePrompt,
   buildProductPromoVideoPrompt,
-  buildPromoImagePrompt,
   buildPromptVariables,
-  buildReferenceConceptImagePrompt,
+  buildWizardImagePrompt,
+  resolveImagePromptMode,
   buildReferenceVideoPrompt,
   buildReferenceVideoNegative,
   type PromptMarket,
@@ -48,6 +49,8 @@ import {
 import {
   DEFAULT_VISUAL_STYLE,
   getVisualStyle,
+  isBrandVisualStyle,
+  isCampaignVisualStyle,
   mergePromptExtra,
   visualStylePromptHint,
   type VisualStyleId,
@@ -68,6 +71,12 @@ import {
   fetchReferenceClipAsFile,
   type ReferenceClipId,
 } from "@/lib/reference-clips";
+import type { BrandProfile } from "@/lib/brand-profile";
+import type { CampaignPlan } from "@/lib/campaign-types";
+import {
+  DEFAULT_IMAGE_OUTPUT_MODE,
+  type ImageOutputMode,
+} from "@/lib/image-output-mode";
 import type { WorkflowMode, WorkflowStepKey } from "@/lib/workflow-mode";
 
 const EDIT_ENDPOINT = BANANA2_EDIT_ENDPOINT;
@@ -103,6 +112,11 @@ export function StudioWizard() {
   );
   const [subjectFraming, setSubjectFraming] = useState<SubjectFraming>("auto");
   const [promptExtra, setPromptExtra] = useState("");
+  const [brandWebsiteUrl, setBrandWebsiteUrl] = useState("");
+  const [brandSocialHint, setBrandSocialHint] = useState("");
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  const [brandAnalyzeBusy, setBrandAnalyzeBusy] = useState(false);
+  const [brandAnalyzeNote, setBrandAnalyzeNote] = useState<string | null>(null);
   const [imagePrompt, setImagePrompt] = useState("");
   const [videoPrompt, setVideoPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -116,7 +130,19 @@ export function StudioWizard() {
   const [lastImageEndpoint, setLastImageEndpoint] = useState<string | null>(null);
   const [imageVariantUrls, setImageVariantUrls] = useState<string[]>([]);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
-  const [generateTwoVariants, setGenerateTwoVariants] = useState(false);
+  const [imageOutputMode, setImageOutputMode] =
+    useState<ImageOutputMode>(DEFAULT_IMAGE_OUTPUT_MODE);
+  const [campaignTheme, setCampaignTheme] = useState("");
+  const [campaignPlan, setCampaignPlan] = useState<CampaignPlan | null>(null);
+  const [campaignSlides, setCampaignSlides] = useState<
+    Array<{
+      role: string;
+      title: string;
+      headline: string;
+      subline: string;
+      imageUrl: string;
+    }>
+  >([]);
   const [uploadQualityWarning, setUploadQualityWarning] = useState<ImageUploadWarning | null>(
     null,
   );
@@ -143,6 +169,11 @@ export function StudioWizard() {
   const visualStyle = getVisualStyle(visualStyleId);
   const templateConfig = getTemplateConfig(templateId);
   const usesCompositor = visualStyle.usesCompositor;
+  const lockedCampaignMode = isCampaignVisualStyle(visualStyleId);
+  const effectiveImageOutputMode: ImageOutputMode = lockedCampaignMode
+    ? "campaign"
+    : imageOutputMode;
+  const isCampaignOutput = effectiveImageOutputMode === "campaign";
   const showVideoReferenceSection = videoCreativeMode === "reference-concept";
   const effectiveImageMode: ImageInputMode =
     templateId === "custom" ? imageInputMode : templateConfig.defaultImageInputMode;
@@ -207,11 +238,13 @@ export function StudioWizard() {
       const pv = getPromptVars();
       const template = getTemplate(id);
       const vOpts = videoPromptOpts();
-      if (imageCreativeMode === "reference-concept") {
-        setImagePrompt(buildReferenceConceptImagePrompt(pv));
-      } else {
-        setImagePrompt(buildPromoImagePrompt(pv));
-      }
+      setImagePrompt(
+        buildWizardImagePrompt(
+          pv,
+          resolveImagePromptMode(visualStyleId, imageCreativeMode),
+          brandProfile,
+        ),
+      );
       setNegativePrompt(buildNegativePrompt(template, pv.framing));
       if (videoCreativeMode === "reference-concept") {
         setVideoPrompt(buildReferenceVideoPrompt(pv));
@@ -225,6 +258,8 @@ export function StudioWizard() {
     },
     [
       templateId,
+      visualStyleId,
+      brandProfile,
       getPromptVars,
       imageCreativeMode,
       videoCreativeMode,
@@ -295,13 +330,62 @@ export function StudioWizard() {
     extraAnglePhotos.length,
     endFrameUrl,
     endFramePhoto,
+    brandProfile,
   ]);
+
+  async function analyzeBrand() {
+    if (!brandWebsiteUrl.trim() && !brandSocialHint.trim()) {
+      setError(m.errors.brandUrlRequired);
+      return;
+    }
+    setBrandAnalyzeBusy(true);
+    setError(null);
+    setBrandAnalyzeNote(null);
+    try {
+      const res = await fetch("/api/analyze-brand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          websiteUrl: brandWebsiteUrl.trim() || undefined,
+          socialHint: brandSocialHint.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? m.errors.brandAnalyzeFailed);
+      const profile = data.profile as BrandProfile;
+      setBrandProfile(profile);
+      setBrandAnalyzeNote((data.sourceNote as string) + " — " + profile.summary);
+      if (profile.businessName) setBusiness(profile.businessName);
+      if (profile.suggestedHeadline && !headline.trim()) {
+        setHeadline(profile.suggestedHeadline);
+      }
+      if (profile.suggestedBullets.length && !subline.trim()) {
+        setSubline(profile.suggestedBullets.join("\n"));
+      }
+      if (profile.adPromptExtra && !promptExtra.trim()) {
+        setPromptExtra(profile.adPromptExtra);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : m.errors.brandAnalyzeFailed);
+    } finally {
+      setBrandAnalyzeBusy(false);
+    }
+  }
 
   function selectVisualStyle(id: VisualStyleId) {
     const style = getVisualStyle(id);
     setVisualStyleId(id);
     setTemplateId(style.templateId);
     setImageInputMode(getTemplateConfig(style.templateId).defaultImageInputMode);
+    if (!isBrandVisualStyle(id)) {
+      setBrandProfile(null);
+      setBrandAnalyzeNote(null);
+    }
+    if (isCampaignVisualStyle(id)) {
+      setImageOutputMode("campaign");
+    }
+    setCampaignPlan(null);
+    setCampaignSlides([]);
     applyPromptRebuild(style.templateId);
   }
 
@@ -356,7 +440,7 @@ export function StudioWizard() {
     setError(null);
     setImageCreativeMode(defaultImageModeForGoal(mode));
     setVideoCreativeMode(defaultVideoModeForGoal(mode));
-    setGenerateTwoVariants(mode === "image-only");
+    setImageOutputMode(mode === "image-only" ? "ab" : DEFAULT_IMAGE_OUTPUT_MODE);
     if (mode === "image-only") setImageInputMode(DEFAULT_IMAGE_INPUT_MODE);
   }
 
@@ -385,12 +469,43 @@ export function StudioWizard() {
   function applyGeneratedImages(urls: string[], endpoint?: string) {
     const list = urls.filter((u) => u.startsWith("http"));
     if (!list.length) return;
+    setCampaignPlan(null);
+    setCampaignSlides([]);
     setImageVariantUrls(list);
     setSelectedVariantIndex(0);
     setImageUrl(list[0]);
     setImageGenKey((k) => k + 1);
     setLastImageEndpoint(endpoint ?? null);
     setUseOriginalImage(false);
+  }
+
+  function applyGeneratedCampaign(
+    slides: Array<{
+      role: string;
+      title: string;
+      headline: string;
+      subline: string;
+      imageUrl: string;
+    }>,
+    plan: CampaignPlan,
+    endpoint?: string,
+  ) {
+    const urls = slides.map((s) => s.imageUrl).filter((u) => u.startsWith("http"));
+    if (!urls.length) return;
+    setCampaignSlides(slides);
+    setCampaignPlan(plan);
+    setImageVariantUrls(urls);
+    setSelectedVariantIndex(0);
+    setImageUrl(urls[0]);
+    setImageGenKey((k) => k + 1);
+    setLastImageEndpoint(endpoint ?? null);
+    setUseOriginalImage(false);
+  }
+
+  function campaignSlideLabel(role: string, title: string): string {
+    const roleKey = role as keyof typeof m.wizard.campaignSlideRoles;
+    const roleLabel = m.wizard.campaignSlideRoles[roleKey];
+    return roleLabel ? `${roleLabel} · ${title}` : title;
   }
 
   function onImageCreativeModeChange(mode: ImageCreativeMode) {
@@ -486,6 +601,12 @@ export function StudioWizard() {
 
   function canGenerateImage(): boolean {
     if (usesCompositor) return Boolean(productPhoto && headline.trim());
+    if (visualStyleId === "info-poster") {
+      return Boolean(productPhoto && headline.trim());
+    }
+    if (isBrandVisualStyle(visualStyleId)) {
+      return Boolean(productPhoto && headline.trim() && brandProfile?.businessName);
+    }
     if (imageCreativeMode === "reference-concept") {
       return Boolean(productPhoto && imageRefPhoto);
     }
@@ -539,6 +660,65 @@ export function StudioWizard() {
       return;
     }
 
+    if (visualStyleId === "info-poster" && !headline.trim()) {
+      setError(m.errors.needHeadline);
+      return;
+    }
+    if (isBrandVisualStyle(visualStyleId)) {
+      if (!brandProfile?.businessName) {
+        setError(m.errors.brandAnalyzeRequired);
+        return;
+      }
+      if (!headline.trim()) {
+        setError(m.errors.needHeadline);
+        return;
+      }
+    }
+
+    if (isCampaignOutput) {
+      if (!productPhoto) {
+        setError(m.errors.needPhoto);
+        return;
+      }
+      setImageBusy(true);
+      try {
+        const fd = new FormData();
+        fd.set("visual_style", visualStyleId);
+        if (brandProfile) fd.set("brand_profile", JSON.stringify(brandProfile));
+        fd.set("product_name", product.trim());
+        fd.set("business", business.trim());
+        fd.set("headline", headline.trim());
+        fd.set("subline", subline.trim());
+        fd.set("offer", offer.trim());
+        fd.set("campaign_theme", campaignTheme.trim());
+        fd.set("prompt_market", promptMarket);
+        fd.set("subject_framing", subjectFraming);
+        fd.set("prompt_extra", effectivePromptExtra());
+        fd.set("aspect_ratio", tpl.aspectRatio);
+        fd.set("endpoint", EDIT_ENDPOINT);
+        fd.set("reference_image", productPhoto);
+        const res = await fetch("/api/generate-campaign", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? m.errors.campaignFailed);
+        applyGeneratedCampaign(
+          data.slides as Array<{
+            role: string;
+            title: string;
+            headline: string;
+            subline: string;
+            imageUrl: string;
+          }>,
+          data.plan as CampaignPlan,
+          data.endpoint as string | undefined,
+        );
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : m.errors.campaignFailed);
+      } finally {
+        setImageBusy(false);
+      }
+      return;
+    }
+
     if (effectiveImageMode === "describe") {
       if (!imagePrompt.trim()) {
         setError(m.errors.needKeyframe);
@@ -553,7 +733,7 @@ export function StudioWizard() {
             prompt: imagePrompt.trim(),
             endpoint: TEXT_ENDPOINT,
             aspect_ratio: tpl.aspectRatio,
-            num_images: generateTwoVariants ? 2 : 1,
+            num_images: effectiveImageOutputMode === "ab" ? 2 : 1,
           }),
         });
         const data = await res.json();
@@ -598,6 +778,10 @@ export function StudioWizard() {
       const fd = new FormData();
       fd.set("image_creative_mode", useConceptRef ? "reference-concept" : imageCreativeMode);
       fd.set("image_mode", useConceptRef ? "product-style" : "product-ad");
+      fd.set("visual_style", visualStyleId);
+      if (brandProfile) {
+        fd.set("brand_profile", JSON.stringify(brandProfile));
+      }
       fd.set("product_name", product.trim());
       fd.set("business", business.trim());
       fd.set("headline", headline.trim());
@@ -608,7 +792,7 @@ export function StudioWizard() {
       fd.set("prompt_extra", effectivePromptExtra());
       fd.set("aspect_ratio", tpl.aspectRatio);
       fd.set("endpoint", EDIT_ENDPOINT);
-      fd.set("num_images", generateTwoVariants ? "2" : "1");
+      fd.set("num_images", effectiveImageOutputMode === "ab" ? "2" : "1");
 
       if (productPhoto) fd.set("reference_image", productPhoto);
       if (useConceptRef && imageRefPhoto) {
@@ -951,7 +1135,12 @@ export function StudioWizard() {
     setImageUrl(null);
     setImageVariantUrls([]);
     setSelectedVariantIndex(0);
-    setGenerateTwoVariants(false);
+    setImageOutputMode(DEFAULT_IMAGE_OUTPUT_MODE);
+    setCampaignTheme("");
+    setCampaignPlan(null);
+    setCampaignSlides([]);
+    setBrandProfile(null);
+    setBrandAnalyzeNote(null);
     setUploadQualityWarning(null);
     setUseOriginalImage(false);
     setVideoUrl(null);
@@ -995,6 +1184,56 @@ export function StudioWizard() {
           <WorkflowModePicker value={workflowMode} onChange={onWorkflowModeChange} />
 
           <VisualStylePicker value={visualStyleId} onChange={selectVisualStyle} />
+
+          {!usesCompositor && isBrandVisualStyle(visualStyleId) && (
+            <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
+              <p className="text-sm font-semibold text-violet-50">{m.wizard.brandFitTitle}</p>
+              <p className="text-xs text-violet-200/90">
+                {lockedCampaignMode ? m.wizard.brandCampaignIntro : m.wizard.brandFitIntro}
+              </p>
+              <label className="block text-xs font-medium text-violet-100">
+                {m.wizard.brandWebsiteLabel}
+              </label>
+              <input
+                value={brandWebsiteUrl}
+                onChange={(e) => setBrandWebsiteUrl(e.target.value)}
+                placeholder={m.wizard.brandWebsitePlaceholder}
+                className="w-full rounded-lg border border-violet-800/60 bg-slate-950 px-3 py-2 text-sm text-white"
+              />
+              <label className="block text-xs font-medium text-violet-100">
+                {m.wizard.brandSocialLabel}
+              </label>
+              <input
+                value={brandSocialHint}
+                onChange={(e) => setBrandSocialHint(e.target.value)}
+                placeholder={m.wizard.brandSocialPlaceholder}
+                className="w-full rounded-lg border border-violet-800/60 bg-slate-950 px-3 py-2 text-sm text-white"
+              />
+              <button
+                type="button"
+                onClick={analyzeBrand}
+                disabled={brandAnalyzeBusy}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                {brandAnalyzeBusy ? m.wizard.brandAnalyzeBusy : m.wizard.brandAnalyzeBtn}
+              </button>
+              {brandAnalyzeNote && (
+                <p className="text-xs text-violet-100/90">{brandAnalyzeNote}</p>
+              )}
+            </div>
+          )}
+
+          {!usesCompositor && visualStyleId === "info-poster" && (
+            <div className="rounded-xl border border-sky-900/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
+              <p className="font-semibold text-sky-50">{m.wizard.infoPosterTechniqueTitle}</p>
+              <p className="mt-1 text-xs text-sky-200/90">{m.wizard.infoPosterTechniqueIntro}</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-sky-100/90">
+                {m.wizard.infoPosterTechniqueSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {!usesCompositor && visualStylePromptHint(visualStyleId) && (
             <p className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
@@ -1053,13 +1292,19 @@ export function StudioWizard() {
           {templateHasSlot(templateId, "subline") && (
             <>
               <label className="block text-sm font-medium text-slate-300">
-                {usesCompositor ? m.wizard.sublineBulletsLabel : m.wizard.sublineLabel}
+                {usesCompositor || visualStyleId === "info-poster"
+                  ? m.wizard.sublineBulletsLabel
+                  : m.wizard.sublineLabel}
               </label>
-              {usesCompositor ? (
+              {usesCompositor || visualStyleId === "info-poster" ? (
                 <textarea
                   value={subline}
                   onChange={(e) => setSubline(e.target.value)}
-                  placeholder={m.wizard.sublineBulletsPlaceholder}
+                  placeholder={
+                    visualStyleId === "info-poster"
+                      ? m.wizard.infoPosterBulletsPlaceholder
+                      : m.wizard.sublineBulletsPlaceholder
+                  }
                   rows={4}
                   className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"
                 />
@@ -1281,23 +1526,32 @@ export function StudioWizard() {
             </details>
           )}
 
-          {!usesCompositor && (
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+          {!usesCompositor && effectiveImageMode !== "describe" && (
+            <ImageOutputModePicker
+              value={effectiveImageOutputMode}
+              onChange={(mode) => {
+                setImageOutputMode(mode);
+                setCampaignPlan(null);
+                setCampaignSlides([]);
+                setImageUrl(null);
+                setImageVariantUrls([]);
+              }}
+              lockedCampaign={lockedCampaignMode}
+            />
+          )}
+
+          {!usesCompositor && isCampaignOutput && (
+            <>
+              <label className="block text-sm font-medium text-slate-300">
+                {m.wizard.campaignThemeLabel}
+              </label>
               <input
-                type="checkbox"
-                checked={generateTwoVariants}
-                onChange={(e) => setGenerateTwoVariants(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-600"
+                value={campaignTheme}
+                onChange={(e) => setCampaignTheme(e.target.value)}
+                placeholder={m.wizard.campaignThemePlaceholder}
+                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"
               />
-              <span>
-                <span className="block text-sm font-medium text-slate-200">
-                  {m.wizard.twoVariantsLabel}
-                </span>
-                <span className="mt-0.5 block text-xs text-slate-400">
-                  {m.wizard.twoVariantsHint}
-                </span>
-              </span>
-            </label>
+            </>
           )}
 
           {error && (
@@ -1314,7 +1568,9 @@ export function StudioWizard() {
               className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               {imageBusy
-                ? m.wizard.imageGenerating
+                ? isCampaignOutput
+                  ? m.wizard.campaignGenerating
+                  : m.wizard.imageGenerating
                 : imageUrl
                   ? usesCompositor
                     ? m.wizard.compositorRegenerateImageBtn
@@ -1347,7 +1603,59 @@ export function StudioWizard() {
             </div>
           )}
 
-          {imageUrl && !useOriginalImage && imageVariantUrls.length > 1 && (
+          {imageUrl && !useOriginalImage && campaignSlides.length > 1 && (
+            <div className="rounded-2xl border border-emerald-700/50 bg-emerald-950/25 p-4">
+              {campaignPlan?.theme && (
+                <p className="mb-2 text-xs text-emerald-100/80">
+                  <span className="font-medium text-emerald-200">{m.wizard.campaignPlanLabel}:</span>{" "}
+                  {campaignPlan.theme}
+                </p>
+              )}
+              <p className="mb-3 text-xs font-medium text-emerald-200">
+                {m.wizard.pickCampaignSlideLabel}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {campaignSlides.map((slide, i) => (
+                  <button
+                    key={`${slide.imageUrl}-${i}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedVariantIndex(i);
+                      setImageUrl(slide.imageUrl);
+                      setImageGenKey((k) => k + 1);
+                    }}
+                    className={`rounded-xl border p-2 text-left transition ${
+                      selectedVariantIndex === i
+                        ? "border-emerald-500 bg-emerald-950/50 ring-2 ring-emerald-500/60"
+                        : "border-slate-700 bg-slate-900/40 hover:border-slate-500"
+                    }`}
+                  >
+                    <img
+                      src={`${slide.imageUrl}${slide.imageUrl.includes("?") ? "&" : "?"}v=${imageGenKey}-${i}`}
+                      alt=""
+                      className="mx-auto max-h-52 w-full rounded-lg object-contain"
+                    />
+                    <span className="mt-2 block text-center text-xs font-medium text-slate-200">
+                      {campaignSlideLabel(slide.role, slide.title)}
+                    </span>
+                    {slide.headline && (
+                      <span className="mt-1 block text-center text-[10px] text-slate-400 line-clamp-2">
+                        {slide.headline}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {lastImageEndpoint && (
+                <p className="mt-2 text-[10px] text-slate-500">{lastImageEndpoint}</p>
+              )}
+            </div>
+          )}
+
+          {imageUrl &&
+            !useOriginalImage &&
+            campaignSlides.length <= 1 &&
+            imageVariantUrls.length > 1 && (
             <div className="rounded-2xl border border-emerald-700/50 bg-emerald-950/25 p-4">
               <p className="mb-3 text-xs font-medium text-emerald-200">{m.wizard.pickVariantLabel}</p>
               <div className="grid grid-cols-2 gap-3">
