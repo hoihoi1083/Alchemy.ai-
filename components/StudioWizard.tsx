@@ -50,7 +50,9 @@ import {
 import {
   DEFAULT_VISUAL_STYLE,
   getVisualStyle,
+  isAiPlannedVideoStyle,
   isBrandVideoStyle,
+  isCreativeVideoStyle,
   isBrandVisualStyle,
   isCampaignVisualStyle,
   isVisualStyleAllowedForWorkflow,
@@ -120,6 +122,7 @@ export function StudioWizard() {
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [brandAnalyzeBusy, setBrandAnalyzeBusy] = useState(false);
   const [brandAnalyzeNote, setBrandAnalyzeNote] = useState<string | null>(null);
+  const [creativeVideoBrief, setCreativeVideoBrief] = useState("");
   const [planVideoPromptBusy, setPlanVideoPromptBusy] = useState(false);
   const [videoPromptPlanNote, setVideoPromptPlanNote] = useState<string | null>(null);
   const [imagePrompt, setImagePrompt] = useState("");
@@ -264,7 +267,7 @@ export function StudioWizard() {
         setVideoPrompt(buildReferenceVideoPrompt(pv, id));
       } else if (useMultiAngleVideo) {
         setVideoPrompt(buildMultiAngleVideoPrompt(pv, vOpts, id));
-      } else if (!isBrandVideoStyle(visualStyleId) || !videoPrompt.trim()) {
+      } else if (!isAiPlannedVideoStyle(visualStyleId) || !videoPrompt.trim()) {
         setVideoPrompt(buildWizardVideoPrompt(id, pv, vOpts));
       }
     },
@@ -346,9 +349,13 @@ export function StudioWizard() {
     brandProfile,
   ]);
 
-  const planVideoPromptFromBrand = useCallback(async () => {
-    if (!brandProfile?.businessName) {
+  const planAiVideoPrompt = useCallback(async () => {
+    if (isBrandVideoStyle(visualStyleId) && !brandProfile?.businessName) {
       setError(m.errors.brandAnalyzeRequired);
+      return;
+    }
+    if (isCreativeVideoStyle(visualStyleId) && !creativeVideoBrief.trim()) {
+      setError(m.errors.creativeBriefRequired);
       return;
     }
     setPlanVideoPromptBusy(true);
@@ -359,7 +366,9 @@ export function StudioWizard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          brandProfile,
+          mode: isCreativeVideoStyle(visualStyleId) ? "creative" : "brand",
+          brandProfile: brandProfile ?? undefined,
+          creativeBrief: creativeVideoBrief.trim(),
           product: product.trim(),
           business: business.trim(),
           headline: headline.trim(),
@@ -375,6 +384,7 @@ export function StudioWizard() {
       const note = [
         data.sourceNote as string | undefined,
         data.motionSummary as string | undefined,
+        String(data.productionNotes ?? "").trim() || undefined,
         m.wizard.planVideoPromptReady,
       ]
         .filter(Boolean)
@@ -389,7 +399,9 @@ export function StudioWizard() {
       setPlanVideoPromptBusy(false);
     }
   }, [
+    visualStyleId,
     brandProfile,
+    creativeVideoBrief,
     product,
     business,
     headline,
@@ -399,21 +411,25 @@ export function StudioWizard() {
     videoSettings,
     useReferenceVideo,
     m.errors.brandAnalyzeRequired,
+    m.errors.creativeBriefRequired,
     m.errors.planVideoPromptFailed,
     m.wizard.planVideoPromptReady,
   ]);
 
   useEffect(() => {
-    if (stepKey !== "video" || !isBrandVideoStyle(visualStyleId)) return;
-    if (!brandProfile?.businessName || videoPrompt.trim() || planVideoPromptBusy) return;
-    void planVideoPromptFromBrand();
+    if (stepKey !== "video" || !isAiPlannedVideoStyle(visualStyleId)) return;
+    if (videoPrompt.trim() || planVideoPromptBusy) return;
+    if (isBrandVideoStyle(visualStyleId) && !brandProfile?.businessName) return;
+    if (isCreativeVideoStyle(visualStyleId) && !creativeVideoBrief.trim()) return;
+    void planAiVideoPrompt();
   }, [
     stepKey,
     visualStyleId,
     brandProfile?.businessName,
+    creativeVideoBrief,
     videoPrompt,
     planVideoPromptBusy,
-    planVideoPromptFromBrand,
+    planAiVideoPrompt,
   ]);
 
   async function analyzeBrand() {
@@ -467,11 +483,14 @@ export function StudioWizard() {
     if (isCampaignVisualStyle(id)) {
       setImageOutputMode("campaign");
     }
-    if (isBrandVideoStyle(id)) {
+    if (isAiPlannedVideoStyle(id)) {
       setVideoPrompt("");
       setVideoPromptPlanNote(null);
     } else {
       setVideoPromptPlanNote(null);
+    }
+    if (!isCreativeVideoStyle(id)) {
+      setCreativeVideoBrief("");
     }
     setVideoSettings((prev) => ({
       ...prev,
@@ -675,6 +694,10 @@ export function StudioWizard() {
     }
     if (isBrandVideoStyle(visualStyleId) && isVideoWorkflow && !brandProfile?.businessName) {
       setError(m.errors.brandAnalyzeRequired);
+      return;
+    }
+    if (isCreativeVideoStyle(visualStyleId) && isVideoWorkflow && !creativeVideoBrief.trim()) {
+      setError(m.errors.creativeBriefRequired);
       return;
     }
     if (workflowMode === "video-only") setStepKey("video");
@@ -1186,6 +1209,10 @@ export function StudioWizard() {
       setError(m.errors.brandVideoPromptRequired);
       return;
     }
+    if (isCreativeVideoStyle(visualStyleId) && !videoPrompt.trim()) {
+      setError(m.errors.creativeVideoPromptRequired);
+      return;
+    }
     if (useMultiAngleVideo && !useReferenceVideo) {
       setError(m.errors.extraAnglesNeedRefVideo);
       return;
@@ -1257,6 +1284,7 @@ export function StudioWizard() {
     setCampaignSlides([]);
     setBrandProfile(null);
     setBrandAnalyzeNote(null);
+    setCreativeVideoBrief("");
     setVideoPromptPlanNote(null);
     setUploadQualityWarning(null);
     setUseOriginalImage(false);
@@ -1315,11 +1343,11 @@ export function StudioWizard() {
           : refMode
             ? m.wizard.videoPreflightSingleCall
             : m.wizard.videoPreflightSingleCall,
-        isBrandVideoStyle(visualStyleId) ? m.wizard.videoPreflightDeepSeek : "",
+        isAiPlannedVideoStyle(visualStyleId) ? m.wizard.videoPreflightDeepSeek : "",
       ].filter(Boolean),
       costLine: autoSecondFrame
         ? m.wizard.videoPreflightDoubleCall
-        : isBrandVideoStyle(visualStyleId)
+        : isAiPlannedVideoStyle(visualStyleId)
           ? `${m.wizard.videoPreflightSingleCall} ${m.wizard.videoPreflightDeepSeek}`
           : m.wizard.videoPreflightSingleCall,
     };
@@ -1343,6 +1371,23 @@ export function StudioWizard() {
             onChange={selectVisualStyle}
             workflowMode={workflowMode}
           />
+
+          {!usesCompositor && isCreativeVideoStyle(visualStyleId) && (
+            <div className="space-y-3 rounded-xl border border-sky-900/50 bg-sky-950/30 px-4 py-3">
+              <p className="text-sm font-semibold text-sky-50">{m.wizard.visualStyles["creative-video"].title}</p>
+              <p className="text-xs text-sky-100/90">{m.wizard.creativeVideoIntro}</p>
+              <label className="block text-xs font-medium text-sky-100">
+                {m.wizard.creativeBriefLabel}
+              </label>
+              <textarea
+                value={creativeVideoBrief}
+                onChange={(e) => setCreativeVideoBrief(e.target.value)}
+                placeholder={m.wizard.creativeBriefPlaceholder}
+                rows={4}
+                className="w-full rounded-lg border border-sky-800/60 bg-slate-950 px-3 py-2 text-sm text-white"
+              />
+            </div>
+          )}
 
           {!usesCompositor && isBrandVisualStyle(visualStyleId) && (
             <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
@@ -1927,14 +1972,33 @@ export function StudioWizard() {
 
           {!usesCompositor && <VideoSettingsPanel value={videoSettings} onChange={setVideoSettings} />}
 
-          {!usesCompositor && isBrandVideoStyle(visualStyleId) && (
+          {!usesCompositor && (
+            <div className="rounded-xl border border-sky-900/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
+              <p className="font-semibold text-sky-50">{m.wizard.videoWearVarietyTitle}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-sky-100/90">
+                {m.wizard.videoWearVarietyTips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {!usesCompositor && isAiPlannedVideoStyle(visualStyleId) && (
             <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
               <p className="text-sm font-semibold text-violet-50">{m.wizard.planVideoPromptBtn}</p>
-              <p className="text-xs text-violet-200/90">{m.wizard.brandVideoIntro}</p>
+              <p className="text-xs text-violet-200/90">
+                {isCreativeVideoStyle(visualStyleId)
+                  ? m.wizard.creativeVideoIntro
+                  : m.wizard.brandVideoIntro}
+              </p>
               <button
                 type="button"
-                onClick={planVideoPromptFromBrand}
-                disabled={planVideoPromptBusy || !brandProfile?.businessName}
+                onClick={planAiVideoPrompt}
+                disabled={
+                  planVideoPromptBusy ||
+                  (isBrandVideoStyle(visualStyleId) && !brandProfile?.businessName) ||
+                  (isCreativeVideoStyle(visualStyleId) && !creativeVideoBrief.trim())
+                }
                 className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
               >
                 {planVideoPromptBusy ? m.wizard.planVideoPromptBusy : m.wizard.planVideoPromptBtn}
@@ -1942,8 +2006,11 @@ export function StudioWizard() {
               {videoPromptPlanNote && (
                 <p className="text-xs text-violet-100/90">{videoPromptPlanNote}</p>
               )}
-              {!brandProfile?.businessName && (
+              {isBrandVideoStyle(visualStyleId) && !brandProfile?.businessName && (
                 <p className="text-xs text-amber-200/90">{m.errors.brandAnalyzeRequired}</p>
+              )}
+              {isCreativeVideoStyle(visualStyleId) && !creativeVideoBrief.trim() && (
+                <p className="text-xs text-amber-200/90">{m.errors.creativeBriefRequired}</p>
               )}
             </div>
           )}

@@ -10,6 +10,7 @@ export type VisualStyleId =
   | "brand-fit"
   | "brand-campaign"
   | "brand-video"
+  | "creative-video"
   | "paper-layout";
 
 export function isBrandVisualStyle(id: VisualStyleId): boolean {
@@ -18,6 +19,15 @@ export function isBrandVisualStyle(id: VisualStyleId): boolean {
 
 export function isBrandVideoStyle(id: VisualStyleId): boolean {
   return id === "brand-video";
+}
+
+export function isCreativeVideoStyle(id: VisualStyleId): boolean {
+  return id === "creative-video";
+}
+
+/** Video-only styles where DeepSeek writes the Seedance prompt before generate. */
+export function isAiPlannedVideoStyle(id: VisualStyleId): boolean {
+  return id === "brand-video" || id === "creative-video";
 }
 
 /** Image campaign / brand-fit — needs analyze-brand before generate. */
@@ -37,7 +47,10 @@ const IMAGE_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
 ]);
 
 /** Video-step brand AI prompt — hidden in image-only workflow. */
-const VIDEO_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>(["brand-video"]);
+const VIDEO_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
+  "brand-video",
+  "creative-video",
+]);
 
 export function isVisualStyleAllowedForWorkflow(
   id: VisualStyleId,
@@ -111,6 +124,13 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
     id: "brand-video",
     icon: "🎬",
     templateId: "brand-video",
+    usesCompositor: false,
+    promptHint: "",
+  },
+  {
+    id: "creative-video",
+    icon: "✨",
+    templateId: "creative-video",
     usesCompositor: false,
     promptHint: "",
   },

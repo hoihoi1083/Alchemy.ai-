@@ -1,5 +1,5 @@
 import type { BrandProfile } from "@/lib/brand-profile";
-import { planVideoPrompt } from "@/lib/video-prompt-plan";
+import { planCreativeVideoPrompt, planVideoPrompt } from "@/lib/video-prompt-plan";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -7,7 +7,9 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let body: {
+    mode?: "brand" | "creative";
     brandProfile?: BrandProfile;
+    creativeBrief?: string;
     product?: string;
     business?: string;
     headline?: string;
@@ -22,25 +24,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const profile = body.brandProfile;
-  if (!profile?.businessName) {
-    return NextResponse.json(
-      { error: "Analyze the brand first (website or social hint)." },
-      { status: 400 },
-    );
-  }
+  const mode = body.mode === "creative" ? "creative" : "brand";
+  const shared = {
+    product: body.product,
+    business: body.business,
+    headline: body.headline,
+    subline: body.subline,
+    offer: body.offer,
+    duration: body.duration,
+    hasReferenceVideo: body.hasReferenceVideo,
+  };
 
   try {
-    const plan = await planVideoPrompt({
-      brandProfile: profile,
-      product: body.product,
-      business: body.business,
-      headline: body.headline,
-      subline: body.subline,
-      offer: body.offer,
-      duration: body.duration,
-      hasReferenceVideo: body.hasReferenceVideo,
-    });
+    if (mode === "creative") {
+      const brief = body.creativeBrief?.trim() || "";
+      if (!brief) {
+        return NextResponse.json(
+          { error: "Describe your creative video idea first." },
+          { status: 400 },
+        );
+      }
+      const plan = await planCreativeVideoPrompt({ creativeBrief: brief, ...shared });
+      return NextResponse.json({
+        ...plan,
+        sourceNote: "Seedance creative video prompt (DeepSeek)",
+      });
+    }
+
+    const profile = body.brandProfile;
+    if (!profile?.businessName) {
+      return NextResponse.json(
+        { error: "Analyze the brand first (website or social hint)." },
+        { status: 400 },
+      );
+    }
+    const plan = await planVideoPrompt({ brandProfile: profile, ...shared });
     return NextResponse.json({
       ...plan,
       sourceNote: "Seedance video prompt from brand analysis (DeepSeek)",

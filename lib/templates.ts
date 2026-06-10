@@ -10,6 +10,7 @@ export type TemplateId =
   | "brand-fit"
   | "brand-campaign"
   | "brand-video"
+  | "creative-video"
   | "testimonial"
   | "custom";
 
@@ -190,6 +191,26 @@ export const TEMPLATES: MarketingTemplate[] = [
       "Gentle cinematic motion on {{product}} for {{business}}, brand-matched lighting and pacing, stable camera, no on-screen text",
     negativePrompt:
       "on-screen text, subtitles, logo, watermark, speech, voiceover, dialogue, lyrics, chaotic motion, blurry, low quality",
+  },
+  {
+    id: "creative-video",
+    name: "Creative video prompt",
+    description: "Describe your Reel idea — DeepSeek writes Seedance motion prompt for your product.",
+    icon: "✨",
+    aspectRatio: "9:16",
+    duration: "8",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 32,
+    camera: "Orbit Around Subject",
+    avoidOnScreenText: true,
+    generateAudio: true,
+    imagePromptTemplate: "Product keyframe for {{product}} — {{headline}}",
+    imageEditPromptTemplate: "Keep exact {{product}} from reference.",
+    videoPromptTemplate:
+      "Cinematic motion on {{product}}, creative commercial pacing, dynamic but stable camera, no on-screen text",
+    negativePrompt:
+      "on-screen text, subtitles, logo, watermark, speech, voiceover, dialogue, lyrics, chaotic jitter, blurry, low quality",
   },
   {
     id: "brand-campaign",

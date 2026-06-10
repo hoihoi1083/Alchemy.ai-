@@ -71,6 +71,10 @@ export const zh = {
         title: "品牌影片分析",
         description: "分析官網 / 社交 → DeepSeek 寫 Seedance 影片 prompt",
       },
+      "creative-video": {
+        title: "創意影片 Prompt",
+        description: "用中文描述你想拍嘅 Reel → AI 寫 Seedance 運鏡 prompt",
+      },
       "paper-layout": {
         title: "固定紙片版面（舊式）",
         description: "文字原字放上模板 — 唔係全 AI 場景生成",
@@ -84,10 +88,16 @@ export const zh = {
       "brand-fit": "",
       "brand-campaign": "",
       "brand-video": "",
+      "creative-video": "",
       "paper-layout": "",
     },
     brandVideoIntro:
       "貼官網或 IG @handle。DeepSeek 會分析品牌，再為 Seedance 寫專用影片 prompt（運鏡、氛圍）。上傳產品相片後生成 Reels。",
+    creativeVideoIntro:
+      "用中文描述你想拍嘅短片（例如：功夫對打後飲能量飲品）。DeepSeek 會寫 Seedance 運鏡 prompt，並提示點樣用參考片 / 雙畫面做到完整故事。只需影片步驟 — 上傳產品相片或關鍵圖即可。",
+    creativeBriefLabel: "創意影片描述（必填）",
+    creativeBriefPlaceholder:
+      "例如：開場一人對五人功夫對峙，打贏後拿起能量飲品喝一口 — 電影感、節奏快",
     brandCampaignIntro:
       "分析完品牌後，會用 DeepSeek 規劃 3 張串連 post，再逐張生成 — 同一品牌 DNA，唔同 message。",
     brandFitTitle: "分析品牌風格（先做呢步）",
@@ -121,6 +131,7 @@ export const zh = {
       "brand-fit": "分析後會自動填；你可再微調產品或場景",
       "brand-campaign": "可填 campaign 主題，例如：春季新品三張圖講清功效",
       "brand-video": "分析後會自動寫影片 prompt；可補充運鏡或氛圍要求",
+      "creative-video": "上面已填創意描述；呢度可補充運鏡或氛圍",
       "paper-layout": "紙片模板主要靠你填嘅文字，呢度通常唔使填",
     },
     campaignThemeLabel: "Campaign 主題（選填）",
@@ -208,6 +219,14 @@ export const zh = {
     endFrameLabel: "結尾畫面（選填）",
     endFrameHint: "唔用自動 — 自己 upload 第二張",
     videoRichMotionNote: "使用豐富動態 + 第二畫面，比淨係 zoom 更有廣告感。",
+    videoWearVarietyTitle: "想更多變化或上手佩戴？",
+    videoWearVarietyTips: [
+      "跟參考片模式：動態主要跟 @Video1 — 參考片冇上手，出嚟通常都唔會有手。",
+      "要上手佩戴：參考 MP4 揀有手背/佩戴嘅片段；@Image1 用原始產品相（靜物宣傳圖較難跟手）；進階揀「只出手」。",
+      "要更多變化：動態豐富度揀「豐富／電影感」；或改「產品宣傳片」+ 開「自動第二畫面」（靜物→上手過渡）。",
+      "亦可自己生成上手圖做「結尾畫面」，或影片 prompt 寫：gentle hand lifts bracelet onto wrist, face never shown。",
+      "完整露樣模特：而家唔支援，只做到手／腳／身體（唔出樣）。",
+    ],
     videoSettingsFast: "快速模式（平啲、草稿質素）",
     videoDurationAuto: "自動",
     videoMotionStyles: {
@@ -516,6 +535,10 @@ export const zh = {
       name: "品牌影片分析",
       description: "DeepSeek 寫 Seedance 影片 prompt",
     },
+    "creative-video": {
+      name: "創意影片 Prompt",
+      description: "描述創意 → DeepSeek 寫 Seedance prompt",
+    },
     testimonial: {
       name: "顧客分享風格",
       description: "溫暖生活感，適合好評帖",
@@ -544,6 +567,8 @@ export const zh = {
     campaignFailed: "Campaign 套圖失敗，請檢查 DeepSeek 餘額同 FAL_KEY。",
     extraAnglesNeedRefVideo: "多角度模式需要同時上傳參考 MP4（跟參考片概念）。",
     brandVideoPromptRequired: "請先分析品牌，再撳「AI 寫影片 Prompt」。",
+    creativeBriefRequired: "請先填「創意影片描述」。",
+    creativeVideoPromptRequired: "請先撳「AI 寫影片 Prompt」並檢查下方 prompt。",
     planVideoPromptFailed: "影片 prompt 規劃失敗，請檢查 DeepSeek 餘額。",
     brandAnalyzeRequired: "請先按「分析品牌」。",
   },

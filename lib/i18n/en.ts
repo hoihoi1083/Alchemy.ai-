@@ -71,6 +71,10 @@ export const en = {
         title: "Brand video analysis",
         description: "Analyze site / social → DeepSeek writes Seedance video prompt",
       },
+      "creative-video": {
+        title: "Creative video prompt",
+        description: "Describe your Reel idea → AI writes Seedance motion prompt",
+      },
       "paper-layout": {
         title: "Fixed paper layout (legacy)",
         description: "Exact text on template — not full AI scene generation",
@@ -85,10 +89,16 @@ export const en = {
       "brand-fit": "",
       "brand-campaign": "",
       "brand-video": "",
+      "creative-video": "",
       "paper-layout": "",
     },
     brandVideoIntro:
       "Paste your site or IG @handle. DeepSeek analyzes the brand, then writes a Seedance video prompt (motion + mood). Upload a product photo to generate the Reel.",
+    creativeVideoIntro:
+      "Describe your short video in plain language (e.g. kung fu fight then drink the product). DeepSeek writes the Seedance prompt and notes how to use reference MP4 or dual frames for a full story. Video step only — upload a product photo or keyframe.",
+    creativeBriefLabel: "Creative video brief (required)",
+    creativeBriefPlaceholder:
+      "e.g. Hero faces five opponents in kung fu, wins, then drinks the energy drink — cinematic, fast pace",
     brandCampaignIntro:
       "After brand analysis, DeepSeek plans 3 linked posts, then generates each — same brand DNA, different message per slide.",
     brandFitTitle: "Analyze brand style (do this first)",
@@ -124,6 +134,7 @@ export const en = {
       "brand-fit": "Filled after analysis; tweak product or scene if needed",
       "brand-campaign": "Optional campaign theme, e.g. spring launch — 3 posts on benefits",
       "brand-video": "Optional extra motion/mood notes — main prompt comes from brand analysis",
+      "creative-video": "Creative brief is above; add extra motion/mood notes here if needed",
       "paper-layout": "Paper template uses your exact text — usually leave this empty",
     },
     campaignThemeLabel: "Campaign theme (optional)",
@@ -212,6 +223,14 @@ export const en = {
     endFrameHint: "Override auto — upload your own second shot",
     videoRichMotionNote:
       "Using lively motion + second frame for a more interesting clip than zoom-only.",
+    videoWearVarietyTitle: "Want more variety or on-body wearing?",
+    videoWearVarietyTips: [
+      "Reference-video mode: motion follows @Video1 — if the clip has no hands, the output usually won’t add them.",
+      "For on-wrist / in-hand: pick a reference MP4 with hands; use raw product photo as @Image1 (static ad keyframes are harder); set advanced framing to hands only.",
+      "For more variety: use Lively or Cinematic creativity; or switch to Product promo + enable auto second frame (still life → on wrist).",
+      "You can also generate an on-wrist still as the end frame, or add to the video prompt: gentle hand lifts bracelet onto wrist, face never shown.",
+      "Full-face models are not supported — hands, feet, or torso only (no identifiable face).",
+    ],
     videoSettingsFast: "Fast mode (lower cost, draft quality)",
     videoDurationAuto: "Auto",
     videoMotionStyles: {
@@ -534,6 +553,10 @@ export const en = {
       name: "Brand video analysis",
       description: "DeepSeek writes Seedance video prompt",
     },
+    "creative-video": {
+      name: "Creative video prompt",
+      description: "Describe idea → DeepSeek writes Seedance prompt",
+    },
     testimonial: {
       name: "Customer style",
       description: "Warm lifestyle look for reviews",
@@ -563,6 +586,8 @@ export const en = {
     extraAnglesNeedRefVideo:
       "Multi-angle mode needs a reference MP4 too (use “Inspired by reference video”).",
     brandVideoPromptRequired: "Analyze brand first, then click “AI write video prompt”.",
+    creativeBriefRequired: "Fill in the creative video brief first.",
+    creativeVideoPromptRequired: "Click “AI write video prompt” and review the prompt below.",
     planVideoPromptFailed: "Video prompt planning failed — check DeepSeek balance.",
     brandAnalyzeRequired: "Tap Analyze brand first.",
   },
