@@ -1,0 +1,19 @@
+/node_modules
+/.next/
+/out/
+.env
+.env*.local
+.pipeline-jobs/
+.DS_Store
+*.pem
+npm-debug.log*
+
+# Local test / debug artifacts
+.ref-frame.jpg
+.out-frame.jpg
+ref-input.mp4
+captions.srt
+--text-only/
+
+# Compositor fonts — run: npm run setup:compositor
+/public/compositor/fonts/*.ttf

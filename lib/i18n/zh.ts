@@ -1,0 +1,439 @@
+import type { TemplateId } from "@/lib/templates";
+
+export const zh = {
+  meta: {
+    title: "AI 營銷工作室",
+    description: "上傳產品相片製作廣告短片，附背景音樂",
+  },
+  lang: {
+    en: "English",
+    zh: "中文",
+  },
+  header: {
+    badge: "簡易模式 · Reels · 附 BGM",
+    title: "AI 營銷工作室",
+    subtitle: "上傳產品圖 · 揀款式 · 出 Reels",
+    proLink: "進階工具",
+  },
+  steps: {
+    setup: "設定",
+    image: "相片",
+    video: "影片",
+    done: "完成",
+  },
+  wizard: {
+    workflowLabel: "你想輸出咩？",
+    workflowModes: {
+      "image-only": {
+        title: "只要相片",
+        description: "AI 宣傳圖 — 下載 PNG",
+      },
+      "video-only": {
+        title: "只要影片",
+        description: "產品相 → Seedance Reels（可選參考片）",
+      },
+      combined: {
+        title: "先要相片，再要影片",
+        description: "Nano Banana 2 宣傳圖 → Seedance 動態 — 兩樣都有",
+      },
+    },
+    visualStyleLabel: "畫面風格",
+    visualStyleHint: "揀風格會自動套用光線同氛圍 — 適用任何產品類別",
+    styleAutoAppliedLabel: "已自動套用風格：",
+    visualStyles: {
+      product: {
+        title: "乾淨產品",
+        description: "影樓 / 生活感產品照 — 任何貨都適用（預設）",
+      },
+      "dark-premium": {
+        title: "暗色高級",
+        description: "深色底、金色光點 — 珠寶、手錶、護膚、禮品都適用",
+      },
+      "warm-shop": {
+        title: "溫馨店鋪",
+        description: "本地小店 / 優惠宣傳感",
+      },
+      "paper-layout": {
+        title: "固定紙片版面（舊式）",
+        description: "文字原字放上模板 — 唔係全 AI 場景生成",
+      },
+    },
+    visualStyleHints: {
+      product: "乾淨商業產品照 — 影樓或明亮生活場景，適用任何實體貨",
+      "dark-premium": "深色奢華氛圍、金色光點 — 唔限水晶，珠寶/手錶/護膚/禮品都得",
+      "warm-shop": "溫暖親切小店感，突出店舖名同優惠",
+      "paper-layout": "",
+    },
+    requirementsLabel: "額外要求（選填）",
+    requirementsPlaceholder: "例如：柔和日光、唔出人、街頭穿搭感…",
+    requirementsPlaceholders: {
+      product: "例如：食品攝影感、白底、護膚品清新感、街頭穿搭…",
+      "dark-premium": "例如：手錶奢華感、香水暗調、茶具金色高光…",
+      "warm-shop": "例如：開張優惠、木枱小店、社區街坊感…",
+      "paper-layout": "紙片模板主要靠你填嘅文字，呢度通常唔使填",
+    },
+    imageCreativeLabel: "點樣整宣傳圖？",
+    imageCreativeModes: {
+      "promo-ai": {
+        title: "AI 宣傳圖",
+        description:
+          "產品相 + 你填嘅資料 → 風格跟產品同文案自動推斷（唔係固定模板）",
+      },
+      "reference-concept": {
+        title: "跟參考圖概念",
+        description:
+          "參考圖提供場景／姿勢／構圖概念，產品相提供真貨 — AI 合成新宣傳圖（唔係複製）",
+      },
+    },
+    imageRefConceptLabel: "參考廣告圖（概念用）",
+    imageRefConceptHint:
+      "上傳參考廣告 JPG/PNG — AI 只跟場景、姿勢、構圖、光線概念，換成你嘅產品。記得填標題/副標。",
+    imageRefConceptActiveHint:
+      "會跟參考圖概念（例如：手拿手鏈、大理石枱、生活感）+ 你嘅產品相真貨 + 主標題／副標文案，生成新圖。唔會逐格複製參考圖。",
+    imageRefAutoModeNote:
+      "已偵測參考廣告圖 — 今次會用「跟參考圖概念」生成（唔係淨係美化產品相）。",
+    uploadPreviewLabel: "你上傳嘅原圖（未生成）",
+    aiImageResultLabel: "AI 生成結果",
+    originalImageLabel: "使用原圖（未經 AI）",
+    videoCreativeLabel: "點樣整影片？",
+    videoCreativeModes: {
+      "product-promo": {
+        title: "產品宣傳片",
+        description: "用關鍵圖做柔和商業動態",
+      },
+      "reference-concept": {
+        title: "跟參考片概念",
+        description: "產品 + 參考 MP4 → 跟運鏡同剪輯概念（唔係逐格複製）",
+      },
+      "image-to-video": {
+        title: "圖片變影片",
+        description: "用步驟 2 嘅 AI 圖 — 最適合「先要圖後要片」",
+      },
+    },
+    videoSettingsTitle: "影片設定",
+    videoSettingsResolution: "解像度",
+    videoSettingsDuration: "片長",
+    videoSettingsMotion: "鏡頭 / 動態",
+    videoSettingsCreativity: "動態豐富度",
+    videoCreativityLevels: {
+      subtle: "柔和 — 輕微 zoom",
+      lively: "豐富 — 多種運鏡（推薦）",
+      cinematic: "電影感 — 多段節奏",
+    },
+    videoAutoSecondFrame: "自動整第二個畫面（一張相 → 影片更有變化）",
+    videoAutoSecondFrameHint:
+      "AI 會生成另一個角度（例如上手佩戴）作為結尾畫面，Seedance 由頭行到尾 — 唔係淨係 zoom。",
+    extraAnglesLabel: "更多產品角度（選填）",
+    extraAnglesHint: "同一款貨 2–3 張相 — 多角度動態，比單張 zoom 更靚",
+    extraAnglesCta: "加入角度相片",
+    endFrameLabel: "結尾畫面（選填）",
+    endFrameHint: "唔用自動 — 自己 upload 第二張",
+    videoRichMotionNote: "使用豐富動態 + 第二畫面，比淨係 zoom 更有廣告感。",
+    videoSettingsFast: "快速模式（平啲、草稿質素）",
+    videoDurationAuto: "自動",
+    videoMotionStyles: {
+      "slow-push": "慢推近",
+      "gentle-orbit": "輕微環繞",
+      "static-glow": "微閃（鏡頭固定）",
+      "pull-out": "慢拉遠",
+    },
+    step1Title: "步驟 1 — 輸出類型同產品資料",
+    step1Hint: "揀只要圖、只要片、定兩樣都要。填好產品資料，AI 跟住做。",
+    setupHints: {
+      "image-only": "下一步：用文字描述、一張參考圖、或產品相+風格參考圖來整相片。",
+      "video-only": "下一步：上傳產品靜態圖（@Image1），可選參考廣告 MP4 跟運鏡（@Video1）。",
+      combined: "下一步：先 AI 整圖，再 Seedance 做片 — 影片步驟可上傳參考 MP4。",
+    },
+    setupCallouts: {
+      "image-only": "只整相片 — 冇影片步驟。下一步揀點樣生成圖片。",
+      "video-only": "只整影片 — Seedance + BGM。下一步上傳產品相同可選參考廣告 MP4。",
+      combined: "完整廣告 — 先生成/美化相片，再做動態。參考 MP4 跟返之前嘅運鏡功能。",
+    },
+    imageInputLabel: "你想點樣整張圖？",
+    imageInputModes: {
+      "product-ad": {
+        title: "產品 → 廣告圖（推薦）",
+        description: "只上傳產品相 — AI 保留你件貨，整張靚廣告圖（唔跟風格參考）",
+      },
+      "product-style": {
+        title: "產品 + 風格參考",
+        description: "產品相 + 第二張參考圖，跟嗰張廣告嘅構圖、光線、氛圍",
+      },
+      describe: {
+        title: "純文字描述",
+        description: "唔使上傳 — 用 prompt 描述（步驟 1 產品名有幫助）",
+      },
+      reference: {
+        title: "只用參考圖",
+        description: "上傳一張廣告/相片 — AI 跟佢嘅視覺風格，配合你嘅產品描述",
+      },
+    },
+    videoSectionKeyframe: "1. 關鍵圖（@Image1）",
+    videoSectionReference: "2. 參考廣告 — 跟運鏡（@Video1）",
+    videoSectionBgm: "3. 背景音樂",
+    continueNext: "繼續",
+    continueToImage: "繼續 → 相片",
+    continueToVideo: "繼續 → 影片步驟",
+    finishImage: "完成 → 下載",
+    step2Title: "步驟 2 — 宣傳圖（Nano Banana 2）",
+    step2Hint: "上傳產品相。AI 為你生成新廣告圖；若揀咗參考概念，會跟參考圖重新設計（唔照抄）。",
+    step2Hints: {
+      "image-only": "下面揀一種方式，生成後下載 — 唔會做影片。",
+      combined:
+        "預設只上傳產品整靚廣告圖。想跟另一張廣告風格先揀「產品 + 風格參考」。",
+    },
+    imageModelLabel: "相片 AI 模型",
+    imageModels: {
+      "nano-banana-2-edit": {
+        label: "Nano Banana 2 Edit（預設）",
+        hint: "上傳產品相 → AI 設計新廣告圖，保留你件貨",
+      },
+      "nano-banana-edit": {
+        label: "Nano Banana Edit（舊版）",
+        hint: "上傳產品相 → AI 美化，保留你件貨",
+      },
+      "nano-banana": {
+        label: "Nano Banana — 純文字",
+        hint: "唔使上傳 — 靠步驟 1 產品名 + prompt",
+      },
+      "nano-banana-pro-edit": {
+        label: "Nano Banana Pro Edit（進階）",
+        hint: "高質美化 — 需要上傳產品相",
+      },
+    },
+    twoVariantsLabel: "一次產生 2 個版本",
+    twoVariantsHint: "同一設定出兩張圖，揀較滿意嗰張（約 2× API 成本）",
+    pickVariantLabel: "揀一個版本繼續",
+    variantA: "版本 A",
+    variantB: "版本 B",
+    exactTextHint: "要圖上精確中文標題？AI 生圖未必字字正確。",
+    exactTextCta: "改用紙條貼紙模板 → 文字原字放上版面",
+    uploadQualityLowRes: "相片解像度偏低（建議至少 800×800）— 仍可生成，但產品細節可能唔夠清晰。",
+    uploadQualityVerySmall: "相片太細（低於 512px）— 建議換一張更清晰嘅產品相。",
+    imageRefLabel: "風格參考圖（相片，選填）",
+    imageRefHint:
+      "只影響相片 AI — 構圖/光線/氛圍。影片參考 MP4 喺「影片」步驟上傳。",
+    styleRefPromptActive:
+      "已偵測風格參考圖 — prompt 已改為跟參考圖（構圖、光線、圖案）。請重新生成。",
+    productAdHint:
+      "AI 會用你填嘅主標題／副標／優惠設計宣傳圖 — 保留同一件貨，加上廣告文字同靚背景。唔使上傳參考圖。",
+    imageRefCta: "選擇參考圖",
+    imageRefChange: "更換參考圖",
+    videoKeyframeLabel: "關鍵圖（影片起點）",
+    videoKeyframeHint: "Seedance 會將呢張圖變成動態（你嘅相或 AI 生成圖）",
+    downloadImage: "下載相片",
+    imageDoneTitle: "相片已完成",
+    imageDoneHint: "下載圖片。需要影片可另外揀「只整影片」或「相片+影片」。",
+    generateImageBtn: "生成相片",
+    regenerateImageBtn: "重新生成相片",
+    useOriginalBtn: "直接用原圖（跳過生成，去影片）",
+    useOriginalImageOnlyBtn: "直接用原圖（唔經 AI）",
+    imageReadyHint: "滿意呢張圖？繼續製作影片。",
+    step3Title: "步驟 3 — 影片（AI 動態）",
+    step3Hint: "Seedance 將相片變成影片。可上傳參考廣告 MP4 跟運鏡（@Image1 + @Video1）。",
+    step3Hints: {
+      "video-only":
+        "上傳產品靜態圖，可選參考廣告 MP4。有 MP4 時，AI 用你嘅相做 @Image1，跟 @Video1 運鏡。",
+      combined: "步驟 2 嘅圖係 @Image1。下面可加參考 MP4 跟運鏡 — 同之前一樣。",
+    },
+    generateVideoBtn: "生成影片",
+    step4Title: "步驟 4 — 廣告已完成",
+    step4Hint: "下載 MP4（含 BGM）。",
+    uploadLabel: "產品相片",
+    uploadHint: "JPG、PNG 或 WEBP · 產品清楚就得",
+    uploadCta: "按此選擇相片",
+    uploadChange: "更換相片",
+    referenceLabel: "參考廣告影片（MP4）",
+    referenceHint:
+      "上傳你想跟嘅短片 MP4。AI 會將你嘅產品（@Image1）做成類似 @Video1 嘅運鏡同風格。",
+    referenceVideoOnlyHint: "MP4 或 MOV · 選填，但建議上傳先有參考運鏡",
+    needKeyframeGoBack: "未有關鍵圖 — 請按返回，生成相片或確認上傳後再來呢步。",
+    referenceImageOnlyHint:
+      "你上傳咗圖片 — 要跟參考片運鏡請上傳 MP4 影片。",
+    referenceModeNote: "已用參考影片模式：你嘅產品相片 + 參考廣告。",
+    referenceModeActive:
+      "已偵測參考影片 — AI 會用上面關鍵圖做 @Image1，跟 @Video1 嘅運鏡同風格。",
+    referenceVideoTooLong:
+      "參考片約 {seconds} 秒 — Seedance 只會用首段 2–15 秒。請喺 CapCut 剪一段 8–12 秒精華再上傳，效果先會似。",
+    referenceVideoTips:
+      "跟參考片貼士：① 剪短至 8–12 秒（唔好成條 30 秒 Reels）② 產品相要同參考片同一類貨 ③ 避免螢幕錄影（IG 按鈕會入鏡）④ 揀「跟參考片概念」+ 720p。",
+    videoRefAutoModeNote:
+      "已偵測參考 MP4 — 會用「跟參考片概念」生成（唔會再用圖片變影片忽略參考片）。",
+    videoRefProductMismatch:
+      "參考片係穿珠/上手動態 — 請用「產品相片」做 @Image1（唔好用已生成宣傳圖），Seedance 先會跟到手同運鏡。",
+    videoRefUseProductPhoto:
+      "提示：今次用 AI 宣傳圖做產品參考 — 建議改用上傳嘅原始產品相，先易跟參考片動態。",
+    videoGenPathLabel: "Seedance 路徑",
+    videoRefIgnoredOnImageMode:
+      "你上傳咗參考 MP4 但今次用咗圖片變影片 — 參考片冇送入模型。請揀「跟參考片概念」。",
+    videoKeyframeProductLabel: "產品 / 關鍵圖（@Image1）",
+    videoKeyframeProductHint:
+      "必須上傳。你嘅產品或靜態圖 — 作為 @Image1。有參考 MP4 時，AI 會跟 @Video1 運鏡。",
+    referenceCta: "按此選擇參考廣告",
+    referenceChange: "更換參考",
+    productLabel: "產品名稱（選填）",
+    productPlaceholder: "例如：金砂石手鏈",
+    businessLabel: "店舖名稱",
+    businessPlaceholder: "例如：幸運水晶 HK",
+    offerLabel: "優惠（選填）",
+    offerPlaceholder: "例如：本週八折",
+    bgmLabel: "背景音樂",
+    bgmCalm: "柔和",
+    bgmUpbeat: "活潑",
+    bgmWarm: "溫暖",
+    phaseSecondFrame: "正在生成第二個畫面（豐富動態）…",
+    phaseVideo: "正在製作影片…",
+    phaseBgm: "正在加入背景音樂…",
+    imageGenerating: "正在生成相片…",
+    download: "下載影片（含 BGM）",
+    subtitles: "加字幕（進階）",
+    newProject: "再製作一條",
+    back: "返回",
+    advanced: "進階選項",
+    advancedHint: "以下選項會自動更新 prompt，你仍可改下面文字。",
+    marketLabel: "市場 / 風格",
+    framingLabel: "人物 / 身體部位",
+    extraLabel: "額外指示（選填）",
+    extraPlaceholder: "例如：金色手鏈戴喺手腕、戶外自然光",
+    promptPreview: "AI prompt（可改）",
+    resetPrompts: "按選項重設",
+    imagePromptLabel: "相片美化 prompt",
+    videoPromptLabel: "影片動態 prompt",
+    promptMarkets: {
+      hk: { label: "香港 / 粵語市場", hint: "港式店舖、都市感、SMB 廣告" },
+      tw: { label: "台灣市場", hint: "柔和生活感、本地品牌" },
+      cn: { label: "內地市場", hint: "明亮電商 / 短視頻風格" },
+      en: { label: "英文 / 國際", hint: "簡潔西式零售感" },
+    },
+    promptFramings: {
+      auto: { label: "自動（跟模板）", hint: "用你上面揀嘅風格" },
+      "product-only": { label: "只有產品 — 唔出人", hint: "產品特寫，畫面冇人" },
+      "hands-only": {
+        label: "只出手 — 唔出樣",
+        hint: "手拎或佩戴產品，絕對唔露出樣",
+      },
+      "legs-feet": {
+        label: "只出腿同腳",
+        hint: "鞋、襪、褲腳 — 膝蓋以上唔入鏡、唔出樣",
+      },
+      "torso-no-face": {
+        label: "身體 / 腰以上 — 唔出樣",
+        hint: "可以有手臂或身體，樣要出鏡外",
+      },
+      "no-people": { label: "完全唔出人", hint: "只有產品同背景" },
+    },
+    retry: "再試一次",
+    bgmNote: "已加入背景音樂。",
+    bgmFallbackNote: "搵唔到音樂檔 — 已用 AI 輕音樂。請執行：npm run setup:bgm",
+    adStyleLabel: "你想做邊種廣告？",
+    adStyleHint: "揀最接近嘅款式 — 跟住做，第一次大約有 80–90% 似預期。",
+    moreOptionsLabel: "更多選項（輸出類型）",
+    adStyles: {
+      "paper-sticker": {
+        title: "紙片 + 貼紙 Reels",
+        description: "固定 IG 版面 — 標題同重點原字放上。文字最準。",
+      },
+      "product-showcase": {
+        title: "產品展示 Reels",
+        description: "AI 產品特寫 + 柔和動態。任何產品都適用。",
+      },
+      "copy-reference-ad": {
+        title: "跟同款廣告做",
+        description: "揀 sample 運鏡片 + 你嘅產品圖。最接近真實 Reels。",
+      },
+      "shop-promo": {
+        title: "店鋪 / 優惠宣傳",
+        description: "店舖、服務或限時優惠 — 溫馨宣傳感。",
+      },
+    },
+    referenceClipLibraryLabel: "內置運鏡 sample",
+    referenceClipLibraryHint: "按一下用作 @Video1 — 或者下面自己 upload MP4。",
+    referenceClipsMissing:
+      "內置運鏡 sample 未安裝（public/references/*.mp4）。請直接喺下面上傳你嘅參考 MP4。",
+    videoGenerateDisabledHint: "請先喺「關鍵圖」上傳產品相，或返回步驟 2 生成／確認圖片。",
+    referenceClips: {
+      "product-push-in": "慢推近",
+      "gentle-orbit": "輕微環繞",
+      "cozy-lifestyle": "溫馨生活感",
+    },
+    adTemplateLabel: "揀廣告模板",
+    templateChecklistLabel: "模板組件",
+    templateSlotRequired: "必填",
+    templateImageModeLocked: "呢個模板已固定相片生成方式。",
+    headlineLabel: "主標題（hook）",
+    headlinePlaceholder: "例如：我如何在 2 小時準備好一個月內容？",
+    sublineLabel: "副標（選填）",
+    sublinePlaceholder: "例如：令效率翻 10 倍嘅核心秘密",
+    sublineBulletsLabel: "重點列表（每行一點）",
+    sublineBulletsPlaceholder: "能量頻率\n個人連結\n真假辨別",
+    brandLabel: "品牌 / handle",
+    brandPlaceholder: "crystal hk",
+    signoffLabel: "落款（選填）",
+    signoffPlaceholder: "從略",
+    compositorCallout:
+      "呢個模板用固定 IG 版面 — 你填嘅標題、重點同品牌會原字放上圖，唔係 AI 亂寫。",
+    compositorImageHint: "上傳產品相。我哋會裁成圓形貼紙，同紙片筆記同你嘅文字合成。",
+    compositorImageBtn: "合成廣告圖",
+    compositorRegenerateImageBtn: "重新合成",
+    compositorVideoHint: "輸出 6 秒 Reels：慢 zoom、紙片浮動、閃光 + BGM。唔用 Seedance AI 影片。",
+    compositorVideoBtn: "合成 Reels 影片",
+    compositorPhaseRender: "渲染畫面中…",
+    templateSlots: {
+      product: "產品名稱",
+      headline: "主標題",
+      subline: "副標",
+      productPhoto: "產品相片",
+      styleRef: "風格參考圖",
+      referenceVideo: "參考廣告 MP4",
+      business: "店舖名稱",
+      offer: "優惠",
+    },
+  },
+  templates: {
+    "paper-sticker-reel": {
+      name: "紙片 + 貼紙 Reels",
+      description: "固定 IG 紙片版面 — 你嘅文字 + 產品貼紙，可出圖同動畫片",
+    },
+    "product-reel": {
+      name: "產品展示",
+      description: "乾淨產品特寫 + 柔和動態",
+    },
+    "crystal-promo": {
+      name: "暗色高級",
+      description: "深色奢華感 + 金色點綴 — 唔限水晶",
+    },
+    "shop-promo": {
+      name: "店舖優惠",
+      description: "門面、服務或限時優惠",
+    },
+    testimonial: {
+      name: "顧客分享風格",
+      description: "溫暖生活感，適合好評帖",
+    },
+    custom: {
+      name: "自訂",
+      description: "自己揀組件同 prompt",
+    },
+  } satisfies Record<TemplateId, { name: string; description: string }>,
+  errors: {
+    polishFailed: "無法美化相片，請再試或開啟快速模式。",
+    videoFailed: "影片製作失敗，請再試。",
+    network: "網絡錯誤，請檢查網絡及 .env.local 內嘅 FAL_KEY",
+    needPhoto: "請先上傳產品相片。",
+    needReferenceImage: "請先上傳參考圖。",
+    needHeadline: "請輸入呢個模板需要嘅主標題。",
+    needKeyframe: "請先生成相片，或選擇「直接用原圖」，再製作影片。",
+    needStyleReference: "請上傳參考廣告圖（跟參考概念模式）。",
+    needReferenceVideo: "請上傳參考 MP4（跟參考片概念模式）。",
+    needGeneratedImage: "請先喺步驟 2 生成 AI 宣傳圖（圖片變影片流程）。",
+    needPrompt: "請上傳相片，或在進階選項描述要製作嘅內容。",
+    imageGenNoUrl: "AI 冇返回圖片網址 — 請睇終端機錯誤或再試。",
+    needAiImage: "請按「生成宣傳圖」，唔好只上傳原圖就下一步。",
+  },
+  pro: {
+    back: "← 返回",
+    title: "進階工具",
+    body: "完整功能（參考影片 AI、成本預設、粵語字幕）暫時喺原本 app：",
+    footnote: "之後會搬嚟呢度。",
+  },
+} as const;
