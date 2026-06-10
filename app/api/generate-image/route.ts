@@ -8,6 +8,7 @@ import {
 } from "@/lib/prompt-variables";
 import type { PromptMarket, SubjectFraming } from "@/lib/prompt-variables";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
+import type { VisualStyleId } from "@/lib/visual-styles";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -177,7 +178,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const builtPrompt = buildWizardImagePrompt(vars, promptMode, brandProfile);
+    const builtPrompt = buildWizardImagePrompt(
+      vars,
+      promptMode,
+      brandProfile,
+      visualStyle as VisualStyleId,
+    );
     const finalPrompt = clientPrompt || builtPrompt;
 
     try {

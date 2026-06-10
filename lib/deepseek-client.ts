@@ -11,7 +11,13 @@ export function deepSeekApiKey(): string | null {
 
 export async function callDeepSeekChat(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
-  options: { model?: string; temperature?: number; max_tokens?: number } = {},
+  options: {
+    model?: string;
+    temperature?: number;
+    max_tokens?: number;
+    /** Ask DeepSeek for strict JSON object output when supported. */
+    jsonObject?: boolean;
+  } = {},
 ): Promise<string> {
   const apiKey = deepSeekApiKey();
   if (!apiKey) {
@@ -33,6 +39,7 @@ export async function callDeepSeekChat(
       temperature: options.temperature ?? 0.4,
       max_tokens: options.max_tokens ?? 1200,
       stream: false,
+      ...(options.jsonObject ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 

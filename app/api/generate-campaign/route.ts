@@ -12,7 +12,7 @@ import {
   type SubjectFraming,
 } from "@/lib/prompt-variables";
 import type { VisualStyleId } from "@/lib/visual-styles";
-import { isBrandVisualStyle } from "@/lib/visual-styles";
+import { requiresBrandProfileForImages } from "@/lib/visual-styles";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (isBrandVisualStyle(visualStyle) && !brandProfile?.businessName) {
+  if (requiresBrandProfileForImages(visualStyle) && !brandProfile?.businessName) {
     return NextResponse.json(
       { error: "Analyze the brand first (website or social hint)." },
       { status: 400 },

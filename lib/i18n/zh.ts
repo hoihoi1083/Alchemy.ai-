@@ -39,6 +39,8 @@ export const zh = {
     },
     visualStyleLabel: "畫面風格",
     visualStyleHint: "揀風格會自動套用光線同氛圍 — 適用任何產品類別",
+    visualStyleHintVideoOnly:
+      "影片模式只顯示適合 Reels 嘅風格（資訊海報、品牌分析、Campaign 已隱藏）",
     styleAutoAppliedLabel: "已自動套用風格：",
     visualStyles: {
       product: {
@@ -65,6 +67,10 @@ export const zh = {
         title: "品牌分析 + Campaign 套圖",
         description: "分析品牌 → 自動出 3 張串連 post（主打 / 賣點 / 優惠）",
       },
+      "brand-video": {
+        title: "品牌影片分析",
+        description: "分析官網 / 社交 → DeepSeek 寫 Seedance 影片 prompt",
+      },
       "paper-layout": {
         title: "固定紙片版面（舊式）",
         description: "文字原字放上模板 — 唔係全 AI 場景生成",
@@ -77,8 +83,11 @@ export const zh = {
       "info-poster": "",
       "brand-fit": "",
       "brand-campaign": "",
+      "brand-video": "",
       "paper-layout": "",
     },
+    brandVideoIntro:
+      "貼官網或 IG @handle。DeepSeek 會分析品牌，再為 Seedance 寫專用影片 prompt（運鏡、氛圍）。上傳產品相片後生成 Reels。",
     brandCampaignIntro:
       "分析完品牌後，會用 DeepSeek 規劃 3 張串連 post，再逐張生成 — 同一品牌 DNA，唔同 message。",
     brandFitTitle: "分析品牌風格（先做呢步）",
@@ -111,6 +120,7 @@ export const zh = {
       "info-poster": "例如：美妝清新感、食品天然感、珠寶極簡 pedestal…",
       "brand-fit": "分析後會自動填；你可再微調產品或場景",
       "brand-campaign": "可填 campaign 主題，例如：春季新品三張圖講清功效",
+      "brand-video": "分析後會自動寫影片 prompt；可補充運鏡或氛圍要求",
       "paper-layout": "紙片模板主要靠你填嘅文字，呢度通常唔使填",
     },
     campaignThemeLabel: "Campaign 主題（選填）",
@@ -149,14 +159,16 @@ export const zh = {
       "reference-concept": {
         title: "跟參考圖概念",
         description:
-          "參考圖提供場景／姿勢／構圖概念，產品相提供真貨 — AI 合成新宣傳圖（唔係複製）",
+          "保留參考廣告排版同設計元素；場地、光線配合你產品／店舖；文案用你填嘅標題",
       },
     },
-    imageRefConceptLabel: "參考廣告圖（概念用）",
+    imageRefConceptLabel: "參考廣告圖（設計參考）",
     imageRefConceptHint:
-      "上傳參考廣告 JPG/PNG — AI 只跟場景、姿勢、構圖、光線概念，換成你嘅產品。記得填標題/副標。",
+      "上傳你鍾意嘅廣告設計作參考 — AI 會保留排版、裝飾元素、產品擺位姿勢；場地同光線會配合你嘅產品／店舖；主標副標用你自己填嘅字。",
     imageRefConceptActiveHint:
-      "會跟參考圖概念（例如：手拿手鏈、大理石枱、生活感）+ 你嘅產品相真貨 + 主標題／副標文案，生成新圖。唔會逐格複製參考圖。",
+      "保留參考圖設計語言（排版、組件、上手/flat lay 姿勢）+ 你嘅產品相真貨 + 你嘅文案。場地、背景、光線會因應產品同店舖調整，唔會照抄參考圖原文字。",
+    referenceConceptOverridesStyle:
+      "參考圖模式：設計跟參考廣告；場地、光線、背景配合產品同畫面風格（例如暗黑精品只影響光線氛圍）。進階可揀「只出手」若參考圖係上手佩戴。",
     imageRefAutoModeNote:
       "已偵測參考廣告圖 — 今次會用「跟參考圖概念」生成（唔係淨係美化產品相）。",
     uploadPreviewLabel: "你上傳嘅原圖（未生成）",
@@ -332,7 +344,22 @@ export const zh = {
       "提示：今次用 AI 宣傳圖做產品參考 — 建議改用上傳嘅原始產品相，先易跟參考片動態。",
     videoGenPathLabel: "Seedance 路徑",
     videoRefIgnoredOnImageMode:
-      "你上傳咗參考 MP4 但今次用咗圖片變影片 — 參考片冇送入模型。請揀「跟參考片概念」。",
+      "你上傳咗參考 MP4，但今次係「產品動態」模式 — 參考片唔會用。要跟運鏡請改揀「跟參考片概念」。",
+    videoPreflightTitle: "生成前檢查",
+    videoPreflightModeProduct: "模式：產品圖 → 影片（image-to-video）",
+    videoPreflightModeRef: "模式：產品圖 + 參考 MP4（reference-to-video）",
+    videoPreflightSettings: "畫質 {resolution} · 時長 {duration} · {tier}",
+    videoPreflightTierFast: "快速草稿（慳錢）",
+    videoPreflightTierQuality: "標準質素",
+    videoPreflightStyle: "畫面風格：{style}",
+    videoPreflightSecondFrame:
+      "會額外 call 1 次出圖 API 自動做第二幀（約多 1× 圖片費用）— 慳錢請關閉「自動整第二個畫面」",
+    videoPreflightSingleCall: "預計：1 次 Seedance + 本地 BGM（無額外出圖）",
+    videoPreflightDoubleCall: "預計：1 次出圖 + 1 次 Seedance + BGM",
+    videoPreflightDeepSeek: "＋1 次 DeepSeek 寫影片 prompt（品牌影片分析）",
+    planVideoPromptBtn: "AI 寫影片 Prompt",
+    planVideoPromptBusy: "DeepSeek 寫緊影片 prompt…",
+    planVideoPromptReady: "已填入下方影片 Prompt — 請檢查後再生成",
     videoKeyframeProductLabel: "產品 / 關鍵圖（@Image1）",
     videoKeyframeProductHint:
       "必須上傳。你嘅產品或靜態圖 — 作為 @Image1。有參考 MP4 時，AI 會跟 @Video1 運鏡。",
@@ -485,6 +512,10 @@ export const zh = {
       name: "品牌 Campaign 套圖",
       description: "分析品牌 → 3 張串連 post",
     },
+    "brand-video": {
+      name: "品牌影片分析",
+      description: "DeepSeek 寫 Seedance 影片 prompt",
+    },
     testimonial: {
       name: "顧客分享風格",
       description: "溫暖生活感，適合好評帖",
@@ -511,6 +542,9 @@ export const zh = {
     brandUrlRequired: "請輸入品牌網站或社交帳號。",
     brandAnalyzeFailed: "品牌分析失敗，請檢查網址或 .env.local 內嘅 DEEPSEEK_API_KEY。",
     campaignFailed: "Campaign 套圖失敗，請檢查 DeepSeek 餘額同 FAL_KEY。",
+    extraAnglesNeedRefVideo: "多角度模式需要同時上傳參考 MP4（跟參考片概念）。",
+    brandVideoPromptRequired: "請先分析品牌，再撳「AI 寫影片 Prompt」。",
+    planVideoPromptFailed: "影片 prompt 規劃失敗，請檢查 DeepSeek 餘額。",
     brandAnalyzeRequired: "請先按「分析品牌」。",
   },
   pro: {

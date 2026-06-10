@@ -118,6 +118,19 @@ function joinParts(...parts: (string | undefined)[]): string {
     .replace(/\.\s*\./g, ".");
 }
 
+/** Strong anchor so edit models keep the uploaded reference as the hero — not brand-template stock scenes. */
+function imageReferenceAnchorBlock(vars: PromptVariables): string {
+  const label = vars.product?.trim() || "the uploaded reference";
+  return joinParts(
+    "CRITICAL — IMAGE 1 IS MANDATORY",
+    `IMAGE 1 is the user's uploaded reference for "${label}". The output MUST clearly show recognizable content from IMAGE 1 as the hero subject.`,
+    "Do NOT replace IMAGE 1 with an unrelated stock scene, lifestyle flat lay, or a different product category.",
+    "If IMAGE 1 is a graphic, poster, or app/UI screenshot: keep the same visual content and layout as the hero — polish lighting and integrate campaign copy; do not swap in unrelated products or props.",
+    "If IMAGE 1 is a physical product photo: preserve the exact item — colors, materials, shape, packaging.",
+    "Brand or campaign art direction may only change background mood, color grade, and typography — never the subject from IMAGE 1.",
+  );
+}
+
 export function buildImageEditPrompt(
   template: MarketingTemplate,
   vars: PromptVariables,
@@ -202,7 +215,8 @@ export function buildInfoPosterImagePrompt(vars: PromptVariables): string {
     `5) Category visualization: subtle props/colors that match the category on a clean white backdrop (beauty = minimal botanical accent; jewelry = soft pedestal; food = fresh ingredient hint).`,
     `6) Premium white style: bright white or soft off-white studio background, soft natural light, editorial e-commerce info graphic like premium IG carousel edu content.`,
     `7) Quality check: avoid obvious AI poster tells — no overcrowded text, no Canva-style frames, no neon gradients, no watermark, no social UI.`,
-    `Use IMAGE 1 as the real product — keep exact item, colors, materials. Remove old text from input.`,
+    imageReferenceAnchorBlock(vars),
+    `Remove outdated marketing text from IMAGE 1 only where new slide copy replaces it.`,
     `Layout: product hero ~35% of frame, headline prominent, 2–4 bullet lines with airy negative space, professional IG info-post composition.`,
     langHint,
     vars.business ? `Brand footer: ${vars.business}.` : "",
@@ -215,6 +229,7 @@ export function buildInfoPosterImagePrompt(vars: PromptVariables): string {
 }
 
 import type { CampaignSlidePlan } from "@/lib/campaign-types";
+import { getVisualStyle, type VisualStyleId } from "@/lib/visual-styles";
 
 export type ImagePromptMode = "promo-ai" | "reference-concept" | "info-poster" | "brand-fit";
 
@@ -226,14 +241,14 @@ export function buildBrandFitImagePrompt(
   const product = vars.product?.trim() || profile.productCategory || "the product";
   const theme = joinParts(vars.headline, vars.subline, vars.offer);
   return joinParts(
-    `Create a vertical social ad for ${product} that MATCHES this brand's existing marketing style — not a generic AI template.`,
+    imageReferenceAnchorBlock(vars),
+    `Create a vertical social ad for ${product} — IMAGE 1 stays the hero; brand DNA below styles colors, typography, and mood only.`,
     brandProfilePromptBlock(profile),
     vars.business ? `Shop name on ad: ${vars.business}.` : "",
     theme ? `Campaign copy for this ad: ${theme}.` : "",
-    `Use IMAGE 1 as the real product — keep exact item, colors, materials. Remove old overlays from input.`,
-    `Design must feel like it belongs on this brand's Instagram: same mood, color palette, typography energy, and layout style as the brand DNA above.`,
+    `Match brand palette and typography energy from the DNA — but do NOT substitute IMAGE 1 with generic category stock shots (e.g. crystals, marble, flat lays) unless IMAGE 1 already shows them.`,
     promoTypographyHint(vars),
-    `Do NOT look like a one-size-fits-all AI poster. Do NOT ignore the brand's visual mood.`,
+    `Do NOT look like a one-size-fits-all AI poster. Do NOT ignore IMAGE 1.`,
     MARKET_HINTS[vars.market],
     FRAMING_IMAGE[vars.framing],
     vars.extra,
@@ -245,8 +260,12 @@ export function buildWizardImagePrompt(
   vars: PromptVariables,
   mode: ImagePromptMode,
   brandProfile?: BrandProfile | null,
+  visualStyleId?: VisualStyleId,
 ): string {
-  if (mode === "reference-concept") return buildReferenceConceptImagePrompt(vars);
+  if (mode === "reference-concept") {
+    const shopHint = visualStyleId ? getVisualStyle(visualStyleId).promptHint : "";
+    return buildReferenceConceptImagePrompt(vars, { shopStyleHint: shopHint, brandProfile });
+  }
   if (mode === "info-poster") return buildInfoPosterImagePrompt(vars);
   if (mode === "brand-fit" && brandProfile?.businessName) {
     return buildBrandFitImagePrompt(vars, brandProfile);
@@ -280,12 +299,15 @@ export function buildCampaignSlideImagePrompt(
     subline: slide.subline || vars.subline,
   };
   const campaignBlock = joinParts(
+    imageReferenceAnchorBlock(slideVars),
     `LINKED CAMPAIGN (${totalSlides} posts — image ${slideIndex + 1}/${totalSlides}).`,
     plan.theme ? `Campaign theme: ${plan.theme}.` : "",
-    `Shared visual DNA (match on every slide): ${plan.visualDna}.`,
     `This slide: ${slide.title} [${slide.role}].`,
-    slide.composition ? `Composition: ${slide.composition}.` : "",
-    "Keep identical color palette, typography style, and brand mood across the series — only message and layout role change.",
+    slide.composition
+      ? `Layout note (secondary to IMAGE 1): ${slide.composition}.`
+      : "",
+    `Shared series styling (colors, typography, mood — same on every slide): ${plan.visualDna}.`,
+    "Each slide varies headline/message and layout role only — IMAGE 1 subject must stay recognizable on every slide.",
   );
   const base =
     mode === "brand-fit" && brandProfile?.businessName
@@ -301,10 +323,11 @@ export function buildPromoImagePrompt(vars: PromptVariables): string {
   const product = vars.product?.trim() || "the product";
   const theme = joinParts(vars.headline, vars.subline, vars.offer);
   return joinParts(
+    imageReferenceAnchorBlock(vars),
     `Create a brand-new vertical social media advertisement for ${product}.`,
     vars.business ? `Brand / shop: ${vars.business}.` : "",
     theme ? `Campaign message: ${theme}.` : "",
-    `Use IMAGE 1 only as the real product reference — keep the exact item, colors, materials, and bead pattern. Remove any old text overlays from the input; replace with fresh designed copy.`,
+    `Remove outdated marketing text from IMAGE 1 where new copy replaces it.`,
     promoArtDirectionHint(vars),
     `Design a complete social ad: product hero, intentional scene, lighting, props, color grade, AND integrated marketing typography.`,
     promoTypographyHint(vars),
@@ -317,8 +340,11 @@ export function buildPromoImagePrompt(vars: PromptVariables): string {
   );
 }
 
-/** Nano Banana: reference ad concept → new image with IMAGE 2 product in IMAGE 1's scene idea. */
-export function buildReferenceConceptImagePrompt(vars: PromptVariables): string {
+/** Nano Banana: reference ad → new image keeping design language, adapting venue/lighting to product/shop. */
+export function buildReferenceConceptImagePrompt(
+  vars: PromptVariables,
+  options?: { shopStyleHint?: string; brandProfile?: BrandProfile | null },
+): string {
   const product = vars.product?.trim() || "the product";
   const brief = joinParts(
     vars.business ? `Brand: ${vars.business}` : undefined,
@@ -328,19 +354,31 @@ export function buildReferenceConceptImagePrompt(vars: PromptVariables): string 
     vars.offer ? `Offer: ${vars.offer}` : undefined,
   );
   const copyHint = promoTypographyHint(vars, true);
+  const framingHint =
+    vars.framing === "auto"
+      ? "Keep the same product interaction type as IMAGE 1 (in hand, on wrist, flat lay, circle hero, on pedestal). Use natural hands with IMAGE 2's product when IMAGE 1 shows hands — face out of frame."
+      : FRAMING_IMAGE[vars.framing];
+  const shopBlock = joinParts(
+    options?.brandProfile?.businessName
+      ? brandProfilePromptBlock(options.brandProfile)
+      : "",
+    options?.shopStyleHint
+      ? `Shop visual style hint (for background and lighting only): ${options.shopStyleHint}.`
+      : "",
+    vars.business ? `Shop: ${vars.business}.` : "",
+  );
   return joinParts(
-    `Two images. Create ONE new 9:16 marketing still.`,
-    `IMAGE 1 = concept reference ad. Extract and follow its visual concept ONLY — scene/setting (surface, room, props), product staging (in-hand, on wrist, flat lay, pedestal, box shot, etc.), camera angle and crop, lighting mood, color grade, and composition rhythm.`,
-    `If IMAGE 1 is a lifestyle photo, keep that lifestyle concept. If IMAGE 1 is a graphic poster, keep that layout style. Do NOT clone IMAGE 1 pixel-for-pixel.`,
-    `Do NOT use the product from IMAGE 1. Do NOT copy readable text, logos, watermarks, social UI, or @handles from IMAGE 1.`,
-    `IMAGE 2 = the real ${product}. Preserve this exact item — bead colors, inclusions, materials, shape, and size.`,
-    `Ignore IMAGE 2's background, packaging scene, and any text on IMAGE 2; extract only the product itself.`,
-    `TASK: Place IMAGE 2's product into a new polished version of IMAGE 1's concept — same idea and staging, different product, upgraded execution.`,
-    brief ? `Campaign brief: ${brief}.` : "",
+    `Two images. Create ONE new 9:16 marketing still for ${product}.`,
+    `HOW TO USE IMAGE 1 (reference ad) — three layers:`,
+    `LAYER A — KEEP (design language): layout structure, composition rhythm, graphic component types (badges, frames, accent shapes, hand-drawn or elegant decoration style), typography hierarchy style, and product staging pose (hand / wrist / flat lay / circle hero). A viewer should recognize the same ad design family as IMAGE 1.`,
+    `LAYER B — ADAPT (venue and light): background, venue, surface, and lighting should suit IMAGE 2's product colors and the shop/campaign mood — they may differ from IMAGE 1. Do not clone IMAGE 1's exact location or lighting if it clashes with the new product; make the environment feel native to this product and shop.`,
+    `LAYER C — REPLACE (content): use IMAGE 2's exact product (colors, materials, shape). All readable headlines and body copy must come from the campaign brief below — never reuse IMAGE 1 product names or selling lines. Do not copy logos, watermarks, or social UI from IMAGE 1.`,
+    `IMAGE 2 = the real ${product}. Always show this item, not the product from IMAGE 1.`,
+    shopBlock,
+    brief ? `Campaign copy (all on-image text): ${brief}.` : "",
     copyHint,
-    `The output must clearly resemble IMAGE 1's concept (a viewer should recognize the same scene idea) while showing IMAGE 2's product and the campaign copy above — not a generic unrelated poster.`,
     MARKET_HINTS[vars.market],
-    FRAMING_IMAGE[vars.framing],
+    framingHint,
     vars.extra,
     "9:16 vertical social ad still, sharp focus, no watermark.",
   );
@@ -355,17 +393,7 @@ export function buildProductWithStyleRefPrompt(vars: PromptVariables): string {
   return buildReferenceConceptImagePrompt(vars);
 }
 
-export function buildVideoPrompt(template: MarketingTemplate, vars: PromptVariables): string {
-  const base = applyTemplate(template.videoPromptTemplate, vars);
-  return joinParts(base, MARKET_HINTS[vars.market], FRAMING_VIDEO[vars.framing], vars.extra) + VIDEO_BGM_HINT;
-}
-
-/** Seedance image-to-video: product promo from generated keyframe. */
-export function buildProductPromoVideoPrompt(
-  vars: PromptVariables,
-  opts: VideoPromptOpts = {},
-): string {
-  const product = vars.product?.trim() || "the product";
+function buildVideoMotionBlock(opts: VideoPromptOpts): string {
   const creativity = opts.creativity ?? "lively";
   const motion = creativityMotionHint(creativity, Boolean(opts.dualFrame));
   const frameNote = opts.dualFrame
@@ -374,28 +402,60 @@ export function buildProductPromoVideoPrompt(
   const multiNote = opts.multiAngle
     ? "Use all reference images as the same product from different angles; cut-like energy between angles while keeping identity consistent."
     : "";
+  return joinParts(
+    frameNote,
+    motion,
+    multiNote,
+    "Keep the same product identity — do not morph into a different item.",
+  );
+}
+
+/** Template-specific Seedance prompt — style from videoPromptTemplate + motion layer. */
+export function buildVideoPrompt(
+  template: MarketingTemplate,
+  vars: PromptVariables,
+  opts?: VideoPromptOpts,
+): string {
+  const styleBase = applyTemplate(template.videoPromptTemplate, vars);
+  const motionBlock = opts ? buildVideoMotionBlock(opts) : "";
   return (
     joinParts(
-      `Premium social ad motion for ${product}.`,
-      vars.headline ? `Theme: ${vars.headline}.` : "",
-      frameNote,
-      motion,
-      multiNote,
-      `Keep the same product identity — do not morph into a different item.`,
+      styleBase,
+      vars.headline ? `Campaign theme: ${vars.headline}.` : "",
+      motionBlock,
       MARKET_HINTS[vars.market],
       FRAMING_VIDEO[vars.framing],
-      "No on-screen text, subtitles, logos, or watermarks",
       vars.extra,
+      opts ? "No on-screen text, subtitles, logos, or watermarks" : "",
     ) + VIDEO_BGM_HINT
   );
+}
+
+/** Wizard video step — picks template from visual style / templateId. */
+export function buildWizardVideoPrompt(
+  templateId: TemplateId,
+  vars: PromptVariables,
+  opts: VideoPromptOpts = {},
+): string {
+  return buildVideoPrompt(getTemplate(templateId), vars, opts);
+}
+
+/** Seedance image-to-video: product promo from generated keyframe. */
+export function buildProductPromoVideoPrompt(
+  vars: PromptVariables,
+  opts: VideoPromptOpts = {},
+  templateId: TemplateId = "product-reel",
+): string {
+  return buildWizardVideoPrompt(templateId, vars, opts);
 }
 
 /** Seedance image-to-video after Nano Banana step in combined workflow. */
 export function buildImageToVideoPrompt(
   vars: PromptVariables,
   opts: VideoPromptOpts = {},
+  templateId: TemplateId = "product-reel",
 ): string {
-  return buildProductPromoVideoPrompt(vars, opts);
+  return buildWizardVideoPrompt(templateId, vars, opts);
 }
 
 /** Second still for start→end image-to-video (Nano Banana). */
@@ -416,10 +476,11 @@ export function buildEndFrameImagePrompt(vars: PromptVariables): string {
 export function buildMultiAngleVideoPrompt(
   vars: PromptVariables,
   opts: VideoPromptOpts = {},
+  templateId: TemplateId = "product-reel",
 ): string {
   const creativity = opts.creativity ?? "lively";
   return joinParts(
-    buildProductPromoVideoPrompt(vars, { ...opts, multiAngle: true, creativity }),
+    buildWizardVideoPrompt(templateId, vars, { ...opts, multiAngle: true, creativity }),
     "Reference images show the same product from different angles — create dynamic motion that showcases multiple views with commercial pacing, not a single slow zoom.",
   );
 }
@@ -443,7 +504,13 @@ export function rebuildPromptsForTemplate(
 }
 
 /** Reference-to-video — @Video1 drives motion/scene; @Image1 is product identity only (fal pattern). */
-export function buildReferenceVideoPrompt(vars: PromptVariables): string {
+export function buildReferenceVideoPrompt(
+  vars: PromptVariables,
+  templateId?: TemplateId,
+): string {
+  const styleMood = templateId
+    ? applyTemplate(getTemplate(templateId).videoPromptTemplate, vars)
+    : "";
   return (
     joinParts(
       "Reference-to-video. @Video1 is the PRIMARY reference: copy its camera angles, shot composition, hand movements, table/scene layout, pacing, and edit rhythm.",
@@ -451,6 +518,9 @@ export function buildReferenceVideoPrompt(vars: PromptVariables): string {
       "If @Video1 shows hands stringing or holding beads, show natural hands with @Image1's product — do NOT collapse into a product-only macro or slow push-in unless @Video1 does that.",
       "Keep the same background type, lighting direction, and framing as @Video1 (e.g. white tabletop, top-down craft shot if that is what @Video1 shows).",
       "Do not copy identifiable faces, brand logos, social UI, or readable on-screen text from @Video1.",
+      styleMood
+        ? `When not conflicting with @Video1, match this brand/style mood: ${styleMood}.`
+        : "",
       vars.headline ? `Campaign theme: ${vars.headline}.` : "",
       MARKET_HINTS[vars.market],
       vars.framing === "hands-only"

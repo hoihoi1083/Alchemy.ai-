@@ -1,22 +1,32 @@
 "use client";
 
 import { useLocale } from "@/components/LocaleProvider";
-import { VISUAL_STYLES, type VisualStyleId } from "@/lib/visual-styles";
+import {
+  visualStylesForWorkflow,
+  type VisualStyleId,
+} from "@/lib/visual-styles";
+import type { WorkflowMode } from "@/lib/workflow-mode";
 
 type Props = {
   value: VisualStyleId;
   onChange: (id: VisualStyleId) => void;
+  workflowMode: WorkflowMode;
 };
 
-export function VisualStylePicker({ value, onChange }: Props) {
+export function VisualStylePicker({ value, onChange, workflowMode }: Props) {
   const { m } = useLocale();
+  const styles = visualStylesForWorkflow(workflowMode);
 
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium text-slate-300">{m.wizard.visualStyleLabel}</p>
-      <p className="text-xs text-slate-500">{m.wizard.visualStyleHint}</p>
+      <p className="text-xs text-slate-500">
+        {workflowMode === "video-only"
+          ? m.wizard.visualStyleHintVideoOnly
+          : m.wizard.visualStyleHint}
+      </p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {VISUAL_STYLES.map((s) => {
+        {styles.map((s) => {
           const copy = m.wizard.visualStyles[s.id];
           return (
             <button

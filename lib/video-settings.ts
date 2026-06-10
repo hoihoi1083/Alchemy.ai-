@@ -62,6 +62,33 @@ export function motionStrengthForStyle(style: VideoMotionStyle): number {
   return MOTION_STRENGTH[style];
 }
 
+/** Match template default camera (from visual style) to motion picker. */
+export function defaultMotionStyleForTemplate(templateId: TemplateId): VideoMotionStyle {
+  const camera = getTemplate(templateId).camera.toLowerCase();
+  if (camera.includes("pull")) return "pull-out";
+  if (camera.includes("orbit")) return "gentle-orbit";
+  if (camera.includes("static")) return "static-glow";
+  return "slow-push";
+}
+
+export function videoSettingsForWorkflow(
+  mode: "image-only" | "video-only" | "combined",
+  templateId: TemplateId,
+): VideoSettings {
+  const motionStyle = defaultMotionStyleForTemplate(templateId);
+  if (mode === "video-only") {
+    return {
+      ...DEFAULT_VIDEO_SETTINGS,
+      motionStyle,
+      autoSecondFrame: false,
+      resolution: "480p",
+      fast: true,
+      duration: "6",
+    };
+  }
+  return { ...DEFAULT_VIDEO_SETTINGS, motionStyle };
+}
+
 /** Merge user panel choices with template defaults (aspect ratio, avoid text, etc.). */
 export function resolveVideoGenerationOpts(
   templateId: TemplateId,

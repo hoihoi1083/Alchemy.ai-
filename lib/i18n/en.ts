@@ -39,6 +39,8 @@ export const en = {
     },
     visualStyleLabel: "Visual style",
     visualStyleHint: "Style auto-applies lighting and mood — works for any product category",
+    visualStyleHintVideoOnly:
+      "Video mode shows Reels-friendly styles only (info poster, brand analysis, and campaign are hidden)",
     styleAutoAppliedLabel: "Auto-applied style:",
     visualStyles: {
       product: {
@@ -65,6 +67,10 @@ export const en = {
         title: "Brand analysis + campaign set",
         description: "Analyze brand → 3 linked posts (hero / selling points / offer)",
       },
+      "brand-video": {
+        title: "Brand video analysis",
+        description: "Analyze site / social → DeepSeek writes Seedance video prompt",
+      },
       "paper-layout": {
         title: "Fixed paper layout (legacy)",
         description: "Exact text on template — not full AI scene generation",
@@ -78,8 +84,11 @@ export const en = {
       "info-poster": "",
       "brand-fit": "",
       "brand-campaign": "",
+      "brand-video": "",
       "paper-layout": "",
     },
+    brandVideoIntro:
+      "Paste your site or IG @handle. DeepSeek analyzes the brand, then writes a Seedance video prompt (motion + mood). Upload a product photo to generate the Reel.",
     brandCampaignIntro:
       "After brand analysis, DeepSeek plans 3 linked posts, then generates each — same brand DNA, different message per slide.",
     brandFitTitle: "Analyze brand style (do this first)",
@@ -114,6 +123,7 @@ export const en = {
       "info-poster": "e.g. fresh skincare mood, natural food styling, minimal jewelry pedestal…",
       "brand-fit": "Filled after analysis; tweak product or scene if needed",
       "brand-campaign": "Optional campaign theme, e.g. spring launch — 3 posts on benefits",
+      "brand-video": "Optional extra motion/mood notes — main prompt comes from brand analysis",
       "paper-layout": "Paper template uses your exact text — usually leave this empty",
     },
     campaignThemeLabel: "Campaign theme (optional)",
@@ -152,14 +162,16 @@ export const en = {
       "reference-concept": {
         title: "Inspired by reference",
         description:
-          "Reference sets scene/pose/composition; product photo supplies the real item — AI composes a new ad (not a copy)",
+          "Keep reference layout and design elements; venue and lighting fit your product/shop; your headline copy",
       },
     },
-    imageRefConceptLabel: "Reference ad image (for concept)",
+    imageRefConceptLabel: "Reference ad (design guide)",
     imageRefConceptHint:
-      "Upload a reference ad JPG/PNG — AI follows scene, pose, composition, and lighting only, swapping in your product. Fill headline/subline.",
+      "Upload an ad design you like — AI keeps layout, decorative elements, and product pose; venue and lighting adapt to your product/shop; use your own headline/subline.",
     imageRefConceptActiveHint:
-      "Uses the reference concept (e.g. hand holding bracelet, marble table, lifestyle mood) + your product photo + your headline/subline copy. Not a pixel copy of the reference.",
+      "Keeps reference design language (layout, components, in-hand/flat-lay pose) + your product photo + your copy. Venue, background, and lighting adjust for your product and shop — reference wording is not copied.",
+    referenceConceptOverridesStyle:
+      "Reference mode: design follows the reference ad; venue, lighting, and background fit your product and visual style (e.g. dark premium affects mood only). Pick “hands only” if the reference shows hands.",
     imageRefAutoModeNote:
       "Reference ad detected — generating with “Inspired by reference” (not a plain product polish).",
     uploadPreviewLabel: "Your upload (not generated yet)",
@@ -347,7 +359,22 @@ export const en = {
       "Tip: using the AI ad still as @Image1 — upload the raw product photo instead for better motion match.",
     videoGenPathLabel: "Seedance path",
     videoRefIgnoredOnImageMode:
-      "You uploaded a reference MP4 but this run used image-to-video — the clip was NOT sent. Switch to “Inspired by reference video”.",
+      "Reference MP4 uploaded but mode is “Product motion” — it will be ignored. Switch to “Inspired by reference video” to match the clip.",
+    videoPreflightTitle: "Pre-flight check",
+    videoPreflightModeProduct: "Mode: product image → video (image-to-video)",
+    videoPreflightModeRef: "Mode: product image + reference MP4 (reference-to-video)",
+    videoPreflightSettings: "Quality {resolution} · duration {duration} · {tier}",
+    videoPreflightTierFast: "Fast draft (cheaper)",
+    videoPreflightTierQuality: "Standard quality",
+    videoPreflightStyle: "Visual style: {style}",
+    videoPreflightSecondFrame:
+      "Will call image API once for an auto second frame (~extra image cost) — turn off “Auto-create a second scene” to save",
+    videoPreflightSingleCall: "Expected: 1× Seedance + local BGM (no extra image)",
+    videoPreflightDoubleCall: "Expected: 1× image + 1× Seedance + BGM",
+    videoPreflightDeepSeek: "+1× DeepSeek video prompt (brand video analysis)",
+    planVideoPromptBtn: "AI write video prompt",
+    planVideoPromptBusy: "DeepSeek writing video prompt…",
+    planVideoPromptReady: "Video prompt filled below — review before generating",
     videoKeyframeProductLabel: "Product / keyframe photo (@Image1)",
     videoKeyframeProductHint:
       "Required. Your product or still — used as @Image1. With a reference MP4, AI matches @Video1 motion.",
@@ -503,6 +530,10 @@ export const en = {
       name: "Brand campaign set",
       description: "Analyze brand → 3 linked posts",
     },
+    "brand-video": {
+      name: "Brand video analysis",
+      description: "DeepSeek writes Seedance video prompt",
+    },
     testimonial: {
       name: "Customer style",
       description: "Warm lifestyle look for reviews",
@@ -529,6 +560,10 @@ export const en = {
     brandUrlRequired: "Enter a brand website or social handle.",
     brandAnalyzeFailed: "Brand analysis failed — check the URL or DEEPSEEK_API_KEY in .env.local.",
     campaignFailed: "Campaign generation failed — check DeepSeek balance and FAL_KEY.",
+    extraAnglesNeedRefVideo:
+      "Multi-angle mode needs a reference MP4 too (use “Inspired by reference video”).",
+    brandVideoPromptRequired: "Analyze brand first, then click “AI write video prompt”.",
+    planVideoPromptFailed: "Video prompt planning failed — check DeepSeek balance.",
     brandAnalyzeRequired: "Tap Analyze brand first.",
   },
   pro: {

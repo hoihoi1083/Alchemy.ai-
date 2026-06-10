@@ -1,4 +1,5 @@
 import type { TemplateId } from "@/lib/templates";
+import type { WorkflowMode } from "@/lib/workflow-mode";
 
 /** Beginner-facing look — maps to template tuning + auto style hints for AI prompts. */
 export type VisualStyleId =
@@ -8,14 +9,47 @@ export type VisualStyleId =
   | "info-poster"
   | "brand-fit"
   | "brand-campaign"
+  | "brand-video"
   | "paper-layout";
 
 export function isBrandVisualStyle(id: VisualStyleId): boolean {
+  return id === "brand-fit" || id === "brand-campaign" || id === "brand-video";
+}
+
+export function isBrandVideoStyle(id: VisualStyleId): boolean {
+  return id === "brand-video";
+}
+
+/** Image campaign / brand-fit — needs analyze-brand before generate. */
+export function requiresBrandProfileForImages(id: VisualStyleId): boolean {
   return id === "brand-fit" || id === "brand-campaign";
 }
 
 export function isCampaignVisualStyle(id: VisualStyleId): boolean {
   return id === "brand-campaign";
+}
+
+/** Image-step styles — hidden in video-only workflow. */
+const IMAGE_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
+  "info-poster",
+  "brand-fit",
+  "brand-campaign",
+]);
+
+/** Video-step brand AI prompt — hidden in image-only workflow. */
+const VIDEO_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>(["brand-video"]);
+
+export function isVisualStyleAllowedForWorkflow(
+  id: VisualStyleId,
+  mode: WorkflowMode,
+): boolean {
+  if (mode === "video-only" && IMAGE_FIRST_VISUAL_STYLE_IDS.has(id)) return false;
+  if (mode === "image-only" && VIDEO_FIRST_VISUAL_STYLE_IDS.has(id)) return false;
+  return true;
+}
+
+export function visualStylesForWorkflow(mode: WorkflowMode): VisualStyleDef[] {
+  return VISUAL_STYLES.filter((s) => isVisualStyleAllowedForWorkflow(s.id, mode));
 }
 
 export type VisualStyleDef = {
@@ -70,6 +104,13 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
     id: "brand-campaign",
     icon: "🎯",
     templateId: "brand-campaign",
+    usesCompositor: false,
+    promptHint: "",
+  },
+  {
+    id: "brand-video",
+    icon: "🎬",
+    templateId: "brand-video",
     usesCompositor: false,
     promptHint: "",
   },

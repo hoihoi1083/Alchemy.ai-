@@ -9,6 +9,7 @@ export type TemplateId =
   | "info-poster"
   | "brand-fit"
   | "brand-campaign"
+  | "brand-video"
   | "testimonial"
   | "custom";
 
@@ -167,6 +168,28 @@ export const TEMPLATES: MarketingTemplate[] = [
       "Gentle motion on brand-fit {{product}} ad, stable camera, preserve legibility",
     negativePrompt:
       "generic AI template, off-brand colors, wrong tone, cluttered layout, watermark, social UI, blurry text, low quality, speech, voiceover",
+  },
+  {
+    id: "brand-video",
+    name: "Brand-fit video",
+    description: "DeepSeek plans Seedance motion prompt from analyzed brand DNA.",
+    icon: "🎬",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 28,
+    camera: "Slow Push In",
+    avoidOnScreenText: true,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Product keyframe for {{product}} — {{business}} brand mood, {{headline}}",
+    imageEditPromptTemplate:
+      "Keep exact {{product}} from reference. Brand mood for {{business}}.",
+    videoPromptTemplate:
+      "Gentle cinematic motion on {{product}} for {{business}}, brand-matched lighting and pacing, stable camera, no on-screen text",
+    negativePrompt:
+      "on-screen text, subtitles, logo, watermark, speech, voiceover, dialogue, lyrics, chaotic motion, blurry, low quality",
   },
   {
     id: "brand-campaign",

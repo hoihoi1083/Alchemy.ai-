@@ -28,14 +28,13 @@ import {
 } from "@/lib/creative-workflow";
 import {
   buildEndFrameImagePrompt,
-  buildImageToVideoPrompt,
   buildMultiAngleVideoPrompt,
   buildNegativePrompt,
-  buildProductPromoVideoPrompt,
   buildPromptVariables,
-  buildWizardImagePrompt,
-  resolveImagePromptMode,
   buildReferenceVideoPrompt,
+  buildWizardImagePrompt,
+  buildWizardVideoPrompt,
+  resolveImagePromptMode,
   buildReferenceVideoNegative,
   type PromptMarket,
   type SubjectFraming,
@@ -43,14 +42,18 @@ import {
 } from "@/lib/prompt-variables";
 import {
   DEFAULT_VIDEO_SETTINGS,
+  defaultMotionStyleForTemplate,
   resolveVideoGenerationOpts,
+  videoSettingsForWorkflow,
   type VideoSettings,
 } from "@/lib/video-settings";
 import {
   DEFAULT_VISUAL_STYLE,
   getVisualStyle,
+  isBrandVideoStyle,
   isBrandVisualStyle,
   isCampaignVisualStyle,
+  isVisualStyleAllowedForWorkflow,
   mergePromptExtra,
   visualStylePromptHint,
   type VisualStyleId,
@@ -117,6 +120,8 @@ export function StudioWizard() {
   const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [brandAnalyzeBusy, setBrandAnalyzeBusy] = useState(false);
   const [brandAnalyzeNote, setBrandAnalyzeNote] = useState<string | null>(null);
+  const [planVideoPromptBusy, setPlanVideoPromptBusy] = useState(false);
+  const [videoPromptPlanNote, setVideoPromptPlanNote] = useState<string | null>(null);
   const [imagePrompt, setImagePrompt] = useState("");
   const [videoPrompt, setVideoPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -183,9 +188,17 @@ export function StudioWizard() {
   const isVideoWorkflow = workflowMode === "video-only" || workflowMode === "combined";
   const isImageWorkflow = workflowMode === "image-only" || workflowMode === "combined";
 
+  const usesReferenceConceptForImage =
+    imageCreativeMode === "reference-concept" ||
+    Boolean(imageRefPhoto && productPhoto);
+
   const effectivePromptExtra = useCallback(
-    () => mergePromptExtra(visualStyleId, promptExtra),
-    [visualStyleId, promptExtra],
+    () => {
+      // In reference mode, style hint is passed separately for lighting/background only — not merged here.
+      if (usesReferenceConceptForImage) return promptExtra.trim();
+      return mergePromptExtra(visualStyleId, promptExtra);
+    },
+    [visualStyleId, promptExtra, usesReferenceConceptForImage],
   );
 
   const getPromptVars = useCallback(
@@ -243,17 +256,16 @@ export function StudioWizard() {
           pv,
           resolveImagePromptMode(visualStyleId, imageCreativeMode),
           brandProfile,
+          visualStyleId,
         ),
       );
       setNegativePrompt(buildNegativePrompt(template, pv.framing));
       if (videoCreativeMode === "reference-concept") {
-        setVideoPrompt(buildReferenceVideoPrompt(pv));
+        setVideoPrompt(buildReferenceVideoPrompt(pv, id));
       } else if (useMultiAngleVideo) {
-        setVideoPrompt(buildMultiAngleVideoPrompt(pv, vOpts));
-      } else if (videoCreativeMode === "image-to-video") {
-        setVideoPrompt(buildImageToVideoPrompt(pv, vOpts));
-      } else {
-        setVideoPrompt(buildProductPromoVideoPrompt(pv, vOpts));
+        setVideoPrompt(buildMultiAngleVideoPrompt(pv, vOpts, id));
+      } else if (!isBrandVideoStyle(visualStyleId) || !videoPrompt.trim()) {
+        setVideoPrompt(buildWizardVideoPrompt(id, pv, vOpts));
       }
     },
     [
@@ -265,6 +277,7 @@ export function StudioWizard() {
       videoCreativeMode,
       videoPromptOpts,
       useMultiAngleVideo,
+      videoPrompt,
     ],
   );
 
@@ -333,6 +346,76 @@ export function StudioWizard() {
     brandProfile,
   ]);
 
+  const planVideoPromptFromBrand = useCallback(async () => {
+    if (!brandProfile?.businessName) {
+      setError(m.errors.brandAnalyzeRequired);
+      return;
+    }
+    setPlanVideoPromptBusy(true);
+    setError(null);
+    try {
+      const vOpts = resolveVideoGenerationOpts(templateId, videoSettings);
+      const res = await fetch("/api/plan-video-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brandProfile,
+          product: product.trim(),
+          business: business.trim(),
+          headline: headline.trim(),
+          subline: subline.trim(),
+          offer: offer.trim(),
+          duration: vOpts.duration,
+          hasReferenceVideo: useReferenceVideo,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? m.errors.planVideoPromptFailed);
+      setVideoPrompt(String(data.videoPrompt ?? ""));
+      const note = [
+        data.sourceNote as string | undefined,
+        data.motionSummary as string | undefined,
+        m.wizard.planVideoPromptReady,
+      ]
+        .filter(Boolean)
+        .join(" — ");
+      setVideoPromptPlanNote(note);
+      setShowAdvancedVideo(true);
+      const suggested = String(data.suggestedHeadline ?? "").trim();
+      if (suggested && !headline.trim()) setHeadline(suggested);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : m.errors.planVideoPromptFailed);
+    } finally {
+      setPlanVideoPromptBusy(false);
+    }
+  }, [
+    brandProfile,
+    product,
+    business,
+    headline,
+    subline,
+    offer,
+    templateId,
+    videoSettings,
+    useReferenceVideo,
+    m.errors.brandAnalyzeRequired,
+    m.errors.planVideoPromptFailed,
+    m.wizard.planVideoPromptReady,
+  ]);
+
+  useEffect(() => {
+    if (stepKey !== "video" || !isBrandVideoStyle(visualStyleId)) return;
+    if (!brandProfile?.businessName || videoPrompt.trim() || planVideoPromptBusy) return;
+    void planVideoPromptFromBrand();
+  }, [
+    stepKey,
+    visualStyleId,
+    brandProfile?.businessName,
+    videoPrompt,
+    planVideoPromptBusy,
+    planVideoPromptFromBrand,
+  ]);
+
   async function analyzeBrand() {
     if (!brandWebsiteUrl.trim() && !brandSocialHint.trim()) {
       setError(m.errors.brandUrlRequired);
@@ -384,6 +467,16 @@ export function StudioWizard() {
     if (isCampaignVisualStyle(id)) {
       setImageOutputMode("campaign");
     }
+    if (isBrandVideoStyle(id)) {
+      setVideoPrompt("");
+      setVideoPromptPlanNote(null);
+    } else {
+      setVideoPromptPlanNote(null);
+    }
+    setVideoSettings((prev) => ({
+      ...prev,
+      motionStyle: defaultMotionStyleForTemplate(style.templateId),
+    }));
     setCampaignPlan(null);
     setCampaignSlides([]);
     applyPromptRebuild(style.templateId);
@@ -442,6 +535,12 @@ export function StudioWizard() {
     setVideoCreativeMode(defaultVideoModeForGoal(mode));
     setImageOutputMode(mode === "image-only" ? "ab" : DEFAULT_IMAGE_OUTPUT_MODE);
     if (mode === "image-only") setImageInputMode(DEFAULT_IMAGE_INPUT_MODE);
+    if (mode === "video-only") {
+      setVideoSettings(videoSettingsForWorkflow("video-only", templateId));
+    }
+    if (!isVisualStyleAllowedForWorkflow(visualStyleId, mode)) {
+      selectVisualStyle(DEFAULT_VISUAL_STYLE);
+    }
   }
 
   async function onProductPhotoSelected(file: File | null) {
@@ -572,6 +671,10 @@ export function StudioWizard() {
     setError(null);
     if (isSlotRequired(templateId, "headline") && !headline.trim()) {
       setError(m.errors.needHeadline);
+      return;
+    }
+    if (isBrandVideoStyle(visualStyleId) && isVideoWorkflow && !brandProfile?.businessName) {
+      setError(m.errors.brandAnalyzeRequired);
       return;
     }
     if (workflowMode === "video-only") setStepKey("video");
@@ -880,7 +983,7 @@ export function StudioWizard() {
     fd.set(
       "prompt",
       videoPrompt.trim() ||
-        buildReferenceVideoPrompt(getPromptVars()) +
+        buildReferenceVideoPrompt(getPromptVars(), templateId) +
           " Follow @Video1 shot structure and timing as closely as the model allows. Do not apply a generic slow push-in unless @Video1 uses it.",
     );
     fd.append("videos", refVideo);
@@ -890,13 +993,13 @@ export function StudioWizard() {
     // Raw product photo first — marketing stills as @Image1 block motion transfer from @Video1.
     if (productPhoto) fd.append("images", productPhoto);
     else if (imageUrl) fd.set("image_ref_url", imageUrl);
-    fd.set("resolution", "720p");
+    fd.set("resolution", vOpts.resolution);
     fd.set("duration", refDuration);
-    fd.set("aspect_ratio", "auto");
-    fd.set("generate_audio", "false");
+    fd.set("aspect_ratio", vOpts.aspectRatio);
+    fd.set("generate_audio", tpl.generateAudio ? "true" : "false");
     fd.set("reference_negative_prompt", buildReferenceVideoNegative(tpl));
     fd.set("avoid_on_screen_text", vOpts.avoidOnScreenText ? "true" : "false");
-    fd.set("fast", "false");
+    fd.set("fast", vOpts.fast ? "true" : "false");
 
     const res = await fetch("/api/generate", { method: "POST", body: fd });
     const data = await res.json();
@@ -964,7 +1067,11 @@ export function StudioWizard() {
     const pv = getPromptVars();
     const fd = new FormData();
     fd.set("mode", "reference");
-    fd.set("prompt", videoPrompt.trim() || buildMultiAngleVideoPrompt(pv, videoPromptOpts()));
+    fd.set(
+      "prompt",
+      videoPrompt.trim() || buildMultiAngleVideoPrompt(pv, videoPromptOpts(), templateId),
+    );
+    if (referenceAd && referenceIsVideo) fd.append("videos", referenceAd);
     if (productPhoto) fd.append("images", productPhoto);
     for (const f of extraAnglePhotos) fd.append("images", f);
     if (imageUrl) fd.set("image_ref_url", imageUrl);
@@ -1003,10 +1110,7 @@ export function StudioWizard() {
     const dualFrame = Boolean(endUrl || endFramePhoto);
     if (dualFrame) promptOpts.dualFrame = true;
 
-    const defaultPrompt =
-      videoCreativeMode === "image-to-video"
-        ? buildImageToVideoPrompt(pv, promptOpts)
-        : buildProductPromoVideoPrompt(pv, promptOpts);
+    const defaultPrompt = buildWizardVideoPrompt(templateId, pv, promptOpts);
     const fd = new FormData();
     fd.set("mode", "image");
     fd.set("prompt", videoPrompt.trim() || defaultPrompt);
@@ -1074,6 +1178,18 @@ export function StudioWizard() {
       setError(m.errors.needReferenceVideo);
       return;
     }
+    if (workflowMode === "video-only" && !usesCompositor && !productPhoto) {
+      setError(m.errors.needPhoto);
+      return;
+    }
+    if (isBrandVideoStyle(visualStyleId) && !videoPrompt.trim()) {
+      setError(m.errors.brandVideoPromptRequired);
+      return;
+    }
+    if (useMultiAngleVideo && !useReferenceVideo) {
+      setError(m.errors.extraAnglesNeedRefVideo);
+      return;
+    }
     if (!hasFinalImage) {
       setError(usesCompositor ? m.errors.needHeadline : m.errors.needKeyframe);
       return;
@@ -1091,14 +1207,14 @@ export function StudioWizard() {
         setVideoPhase("video");
         url = await composeVideo();
         setVideoNote(m.wizard.compositorVideoHint);
-      } else if (referenceAd && referenceIsVideo) {
-        if (videoCreativeMode !== "reference-concept") {
-          setVideoNote(m.wizard.videoRefAutoModeNote);
-        }
+      } else if (videoCreativeMode === "reference-concept" && useReferenceVideo && referenceAd) {
         url = await makeReferenceVideo(referenceAd);
-      } else if (useMultiAngleVideo) {
+      } else if (useMultiAngleVideo && useReferenceVideo && referenceAd) {
         url = await makeMultiAngleVideo();
       } else {
+        if (referenceAd && referenceIsVideo && videoCreativeMode === "product-promo") {
+          setVideoNote(m.wizard.videoRefIgnoredOnImageMode);
+        }
         url = await makeImageToVideo();
       }
       if (!usesCompositor) {
@@ -1141,6 +1257,7 @@ export function StudioWizard() {
     setCampaignSlides([]);
     setBrandProfile(null);
     setBrandAnalyzeNote(null);
+    setVideoPromptPlanNote(null);
     setUploadQualityWarning(null);
     setUseOriginalImage(false);
     setVideoUrl(null);
@@ -1170,6 +1287,44 @@ export function StudioWizard() {
 
   const finalImageSrc = imageUrl ?? (useOriginalImage ? uploadPreviewUrl : null);
 
+  const videoPreflight = (() => {
+    if (usesCompositor || stepKey !== "video") return null;
+    const vOpts = resolveVideoGenerationOpts(templateId, videoSettings);
+    const refMode = videoCreativeMode === "reference-concept" && useReferenceVideo;
+    const autoSecondFrame =
+      !refMode &&
+      !useMultiAngleVideo &&
+      videoSettings.autoSecondFrame &&
+      !endFramePhoto &&
+      !endFrameUrl;
+    const styleName = m.wizard.visualStyles[visualStyleId].title;
+    const tier = vOpts.fast ? m.wizard.videoPreflightTierFast : m.wizard.videoPreflightTierQuality;
+    const durationLabel = vOpts.duration === "auto" ? "auto" : `${vOpts.duration}s`;
+    return {
+      refMode,
+      autoSecondFrame,
+      lines: [
+        refMode ? m.wizard.videoPreflightModeRef : m.wizard.videoPreflightModeProduct,
+        m.wizard.videoPreflightSettings
+          .replace("{resolution}", vOpts.resolution)
+          .replace("{duration}", durationLabel)
+          .replace("{tier}", tier),
+        m.wizard.videoPreflightStyle.replace("{style}", styleName),
+        autoSecondFrame
+          ? m.wizard.videoPreflightSecondFrame
+          : refMode
+            ? m.wizard.videoPreflightSingleCall
+            : m.wizard.videoPreflightSingleCall,
+        isBrandVideoStyle(visualStyleId) ? m.wizard.videoPreflightDeepSeek : "",
+      ].filter(Boolean),
+      costLine: autoSecondFrame
+        ? m.wizard.videoPreflightDoubleCall
+        : isBrandVideoStyle(visualStyleId)
+          ? `${m.wizard.videoPreflightSingleCall} ${m.wizard.videoPreflightDeepSeek}`
+          : m.wizard.videoPreflightSingleCall,
+    };
+  })();
+
   return (
     <div>
       <StepIndicator mode={workflowMode} currentKey={stepKey} />
@@ -1183,13 +1338,21 @@ export function StudioWizard() {
 
           <WorkflowModePicker value={workflowMode} onChange={onWorkflowModeChange} />
 
-          <VisualStylePicker value={visualStyleId} onChange={selectVisualStyle} />
+          <VisualStylePicker
+            value={visualStyleId}
+            onChange={selectVisualStyle}
+            workflowMode={workflowMode}
+          />
 
           {!usesCompositor && isBrandVisualStyle(visualStyleId) && (
             <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
               <p className="text-sm font-semibold text-violet-50">{m.wizard.brandFitTitle}</p>
               <p className="text-xs text-violet-200/90">
-                {lockedCampaignMode ? m.wizard.brandCampaignIntro : m.wizard.brandFitIntro}
+                {lockedCampaignMode
+                  ? m.wizard.brandCampaignIntro
+                  : isBrandVideoStyle(visualStyleId)
+                    ? m.wizard.brandVideoIntro
+                    : m.wizard.brandFitIntro}
               </p>
               <label className="block text-xs font-medium text-violet-100">
                 {m.wizard.brandWebsiteLabel}
@@ -1235,7 +1398,15 @@ export function StudioWizard() {
             </div>
           )}
 
-          {!usesCompositor && visualStylePromptHint(visualStyleId) && (
+          {!usesCompositor && usesReferenceConceptForImage && (
+            <p className="rounded-lg border border-amber-900/50 bg-amber-950/25 px-3 py-2 text-xs text-amber-100/90">
+              {m.wizard.referenceConceptOverridesStyle}
+            </p>
+          )}
+
+          {!usesCompositor &&
+            !usesReferenceConceptForImage &&
+            visualStylePromptHint(visualStyleId) && (
             <p className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
               <span className="font-medium text-slate-300">{m.wizard.styleAutoAppliedLabel}</span>{" "}
               {m.wizard.visualStyleHints[visualStyleId]}
@@ -1756,7 +1927,28 @@ export function StudioWizard() {
 
           {!usesCompositor && <VideoSettingsPanel value={videoSettings} onChange={setVideoSettings} />}
 
-          {!usesCompositor && videoCreativeMode !== "reference-concept" && (
+          {!usesCompositor && isBrandVideoStyle(visualStyleId) && (
+            <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
+              <p className="text-sm font-semibold text-violet-50">{m.wizard.planVideoPromptBtn}</p>
+              <p className="text-xs text-violet-200/90">{m.wizard.brandVideoIntro}</p>
+              <button
+                type="button"
+                onClick={planVideoPromptFromBrand}
+                disabled={planVideoPromptBusy || !brandProfile?.businessName}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                {planVideoPromptBusy ? m.wizard.planVideoPromptBusy : m.wizard.planVideoPromptBtn}
+              </button>
+              {videoPromptPlanNote && (
+                <p className="text-xs text-violet-100/90">{videoPromptPlanNote}</p>
+              )}
+              {!brandProfile?.businessName && (
+                <p className="text-xs text-amber-200/90">{m.errors.brandAnalyzeRequired}</p>
+              )}
+            </div>
+          )}
+
+          {!usesCompositor && videoCreativeMode === "reference-concept" && (
               <div className="space-y-3 rounded-2xl border border-violet-900/40 bg-violet-950/20 p-4">
                 <p className="text-sm font-medium text-violet-100">{m.wizard.extraAnglesLabel}</p>
                 <p className="text-xs text-violet-200/70">{m.wizard.extraAnglesHint}</p>
@@ -1928,6 +2120,18 @@ export function StudioWizard() {
               onResetFromOptions={() => applyPromptRebuild()}
             />
           </details>
+          )}
+
+          {videoPreflight && !videoBusy && (
+            <div className="rounded-xl border border-sky-900/50 bg-sky-950/25 px-4 py-3 text-xs text-sky-100">
+              <p className="font-semibold text-sky-50">{m.wizard.videoPreflightTitle}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                {videoPreflight.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <p className="mt-2 font-medium text-sky-200">{videoPreflight.costLine}</p>
+            </div>
           )}
 
           {error && (
