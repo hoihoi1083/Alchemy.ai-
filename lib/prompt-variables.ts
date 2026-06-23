@@ -8,9 +8,17 @@ import {
   type TemplateId,
 } from "@/lib/templates";
 import {
+  buildModelWearPresentationHint,
+  buildSecondFrameSceneHint,
+} from "@/lib/product-scene-hints";
+import {
   creativityMotionHint,
   type VideoCreativity,
 } from "@/lib/video-creativity";
+import type {
+  StoryboardScenePlan,
+  VideoStoryboardPlan,
+} from "@/lib/video-storyboard-types";
 
 export type VideoPromptOpts = {
   creativity?: VideoCreativity;
@@ -171,11 +179,17 @@ function promoTypographyHint(vars: PromptVariables, copyFromReference?: boolean)
   const refNote = copyFromReference
     ? " Do not copy readable wording from IMAGE 1."
     : "";
+  const noInventedPricing =
+    " Do NOT add price tags, currency amounts (e.g. HK$, ¥), discount percentages (e.g. 88折), or limited-time sale claims unless the brief explicitly includes an Offer line.";
   if (lines.length > 0) {
-    return `${langHint} Integrate these marketing lines into the poster as readable ad copy — bold main headline, supporting sublines, optional offer badge or brand footer: ${lines.join(" · ")}.${refNote}`;
+    const hasOffer = Boolean(vars.offer?.trim());
+    const offerNote = hasOffer
+      ? " Use only the provided Offer text for any promotion badge — do not invent extra prices or discounts."
+      : noInventedPricing;
+    return `${langHint} Integrate these marketing lines into the poster as readable ad copy — bold main headline, supporting sublines${hasOffer ? ", optional offer badge" : ""}, optional brand footer: ${lines.join(" · ")}.${offerNote}${refNote}`;
   }
   const product = vars.product?.trim() || "the product";
-  return `${langHint} Add short boutique ad headlines suited to ${product} — hook plus supporting line, woven into the layout.${refNote}`;
+  return `${langHint} Add short boutique ad headlines suited to ${product} — hook plus supporting line, woven into the layout.${noInventedPricing}${refNote}`;
 }
 
 function parseSellingPointBullets(subline?: string): string[] {
@@ -231,7 +245,34 @@ export function buildInfoPosterImagePrompt(vars: PromptVariables): string {
 import type { CampaignSlidePlan } from "@/lib/campaign-types";
 import { getVisualStyle, type VisualStyleId } from "@/lib/visual-styles";
 
-export type ImagePromptMode = "promo-ai" | "reference-concept" | "info-poster" | "brand-fit";
+export type ImagePromptMode =
+  | "promo-ai"
+  | "reference-concept"
+  | "info-poster"
+  | "brand-fit"
+  | "model-wear"
+  | "service-promo"
+  | "pricing-offer"
+  | "website-launch";
+
+/** Lifestyle model wearing / using the product — photorealistic ad still from product photo. */
+export function buildModelWearImagePrompt(vars: PromptVariables): string {
+  const product = vars.product?.trim() || "the product";
+  const theme = joinParts(vars.headline, vars.subline, vars.offer);
+  return joinParts(
+    imageReferenceAnchorBlock(vars),
+    `Create a photorealistic vertical LIFESTYLE ADVERTISEMENT for ${product}.`,
+    buildModelWearPresentationHint(product, vars.framing),
+    `Keep the exact product from IMAGE 1 — same item, colors, materials, charm details. Do NOT replace with a different product.`,
+    vars.business ? `Brand mood: ${vars.business}.` : "",
+    theme ? `Ad copy theme (integrate as subtle vertical sidebar typography if appropriate): ${theme}.` : promoTypographyHint(vars),
+    `Photorealistic editorial commercial — natural skin, realistic lighting, shallow DOF, NOT cartoon, NOT plastic AI skin.`,
+    `Do NOT invent prices, HK$, or discount % unless offer is in the brief.`,
+    MARKET_HINTS[vars.market],
+    vars.extra,
+    "9:16 vertical, no watermark, no social UI chrome.",
+  );
+}
 
 /** Brand-fit: ad styled to match analyzed website/social brand DNA. */
 export function buildBrandFitImagePrompt(
@@ -256,6 +297,54 @@ export function buildBrandFitImagePrompt(
   );
 }
 
+export function buildServicePromoImagePrompt(vars: PromptVariables): string {
+  const name = vars.business?.trim() || vars.product?.trim() || "the service";
+  return joinParts(
+    `Create a premium vertical social ad promoting a SERVICE for ${name}.`,
+    vars.headline ? `Main headline: ${vars.headline}.` : "",
+    vars.subline ? `Supporting points: ${vars.subline}.` : "",
+    vars.offer ? `Offer / CTA: ${vars.offer}.` : "",
+    "Professional trustworthy design — consulting, coaching, course, membership, wellness, B2C service.",
+    "Typography-led layout with intentional hierarchy — NOT a physical product packshot or warehouse scene.",
+    promoTypographyHint(vars),
+    `Do NOT invent prices, HK$, or discount % unless offer is in the brief.`,
+    MARKET_HINTS[vars.market],
+    vars.extra,
+    "Vertical social feed ad, sharp focus, no watermark, no social UI chrome.",
+  );
+}
+
+export function buildPricingOfferImagePrompt(vars: PromptVariables): string {
+  const name = vars.business?.trim() || vars.product?.trim() || "the brand";
+  return joinParts(
+    `Create a vertical pricing / limited-offer promo graphic for ${name}.`,
+    vars.headline ? `Offer theme: ${vars.headline}.` : "",
+    vars.subline ? `Benefit bullets: ${vars.subline}.` : "",
+    vars.offer ? `CTA / offer line: ${vars.offer}.` : "",
+    "Clean pricing-card or promo-banner layout with clear CTA button area — IG/FB feed friendly.",
+    "Premium but approachable SMB aesthetic. Generous whitespace, readable type.",
+    `Do NOT invent specific prices, HK$, or discount % unless the user offer field includes them.`,
+    MARKET_HINTS[vars.market],
+    vars.extra,
+    "Vertical marketing still, no watermark, no platform UI overlay.",
+  );
+}
+
+export function buildWebsiteLaunchImagePrompt(vars: PromptVariables): string {
+  const name = vars.business?.trim() || vars.product?.trim() || "the brand";
+  return joinParts(
+    `Create a vertical website or app LAUNCH promo for ${name}.`,
+    vars.headline ? `Launch hook: ${vars.headline}.` : "",
+    vars.subline ? `Supporting copy: ${vars.subline}.` : "",
+    "Modern device frame or browser mockup mood — polished tech/SMB marketing, soft gradient background.",
+    "Optional subtle logo placement. Focus on driving visits or sign-ups — not a product unboxing photo.",
+    promoTypographyHint(vars),
+    MARKET_HINTS[vars.market],
+    vars.extra,
+    "Vertical launch ad, no Instagram/FB UI chrome, no watermark.",
+  );
+}
+
 export function buildWizardImagePrompt(
   vars: PromptVariables,
   mode: ImagePromptMode,
@@ -267,10 +356,14 @@ export function buildWizardImagePrompt(
     return buildReferenceConceptImagePrompt(vars, { shopStyleHint: shopHint, brandProfile });
   }
   if (mode === "info-poster") return buildInfoPosterImagePrompt(vars);
+  if (mode === "model-wear") return buildModelWearImagePrompt(vars);
+  if (mode === "service-promo") return buildServicePromoImagePrompt(vars);
+  if (mode === "pricing-offer") return buildPricingOfferImagePrompt(vars);
+  if (mode === "website-launch") return buildWebsiteLaunchImagePrompt(vars);
   if (mode === "brand-fit" && brandProfile?.businessName) {
     return buildBrandFitImagePrompt(vars, brandProfile);
   }
-  return buildPromoImagePrompt(vars);
+  return buildPromoImagePrompt(vars, brandProfile);
 }
 
 export function resolveImagePromptMode(
@@ -279,6 +372,10 @@ export function resolveImagePromptMode(
 ): ImagePromptMode {
   if (creativeMode === "reference-concept") return "reference-concept";
   if (visualStyleId === "info-poster") return "info-poster";
+  if (visualStyleId === "model-wear") return "model-wear";
+  if (visualStyleId === "service-promo") return "service-promo";
+  if (visualStyleId === "pricing-offer") return "pricing-offer";
+  if (visualStyleId === "website-launch") return "website-launch";
   if (visualStyleId === "brand-fit" || visualStyleId === "brand-campaign") return "brand-fit";
   return "promo-ai";
 }
@@ -292,6 +389,7 @@ export function buildCampaignSlideImagePrompt(
   brandProfile: BrandProfile | null | undefined,
   slideIndex: number,
   totalSlides: number,
+  hasReferenceImage = true,
 ): string {
   const slideVars: PromptVariables = {
     ...vars,
@@ -299,7 +397,7 @@ export function buildCampaignSlideImagePrompt(
     subline: slide.subline || vars.subline,
   };
   const campaignBlock = joinParts(
-    imageReferenceAnchorBlock(slideVars),
+    hasReferenceImage ? imageReferenceAnchorBlock(slideVars) : "",
     `LINKED CAMPAIGN (${totalSlides} posts — image ${slideIndex + 1}/${totalSlides}).`,
     plan.theme ? `Campaign theme: ${plan.theme}.` : "",
     `This slide: ${slide.title} [${slide.role}].`,
@@ -307,24 +405,44 @@ export function buildCampaignSlideImagePrompt(
       ? `Layout note (secondary to IMAGE 1): ${slide.composition}.`
       : "",
     `Shared series styling (colors, typography, mood — same on every slide): ${plan.visualDna}.`,
-    "Each slide varies headline/message and layout role only — IMAGE 1 subject must stay recognizable on every slide.",
+    hasReferenceImage
+      ? "Each slide varies headline/message and layout role only — IMAGE 1 subject must stay recognizable on every slide."
+      : "Each slide varies headline/message and layout role only — keep one consistent campaign art direction across all slides.",
+    slide.role === "offer" && !vars.offer?.trim()
+      ? "Offer slide: CTA / shop-now mood only — do NOT invent prices, HK$, discount %, or fake promotions."
+      : "",
   );
   const base =
     mode === "brand-fit" && brandProfile?.businessName
       ? buildBrandFitImagePrompt(slideVars, brandProfile)
       : mode === "info-poster"
         ? buildInfoPosterImagePrompt(slideVars)
-        : buildPromoImagePrompt(slideVars);
+        : mode === "service-promo"
+          ? buildServicePromoImagePrompt(slideVars)
+          : mode === "pricing-offer"
+            ? buildPricingOfferImagePrompt(slideVars)
+            : mode === "website-launch"
+              ? buildWebsiteLaunchImagePrompt(slideVars)
+              : buildPromoImagePrompt(slideVars, brandProfile);
   return joinParts(campaignBlock, base);
 }
 
 /** Nano Banana: new promotional image from product photo + brief (not a template paste). */
-export function buildPromoImagePrompt(vars: PromptVariables): string {
+export function buildPromoImagePrompt(
+  vars: PromptVariables,
+  brandProfile?: BrandProfile | null,
+): string {
   const product = vars.product?.trim() || "the product";
   const theme = joinParts(vars.headline, vars.subline, vars.offer);
   return joinParts(
     imageReferenceAnchorBlock(vars),
     `Create a brand-new vertical social media advertisement for ${product}.`,
+    brandProfile?.businessName
+      ? joinParts(
+          "Apply this brand DNA in art direction, palette, and typography tone.",
+          brandProfilePromptBlock(brandProfile),
+        )
+      : "",
     vars.business ? `Brand / shop: ${vars.business}.` : "",
     theme ? `Campaign message: ${theme}.` : "",
     `Remove outdated marketing text from IMAGE 1 where new copy replaces it.`,
@@ -397,14 +515,19 @@ function buildVideoMotionBlock(opts: VideoPromptOpts): string {
   const creativity = opts.creativity ?? "lively";
   const motion = creativityMotionHint(creativity, Boolean(opts.dualFrame));
   const frameNote = opts.dualFrame
-    ? "Start frame = opening composition, end frame = closing composition — animate a smooth journey between them."
-    : "Animate the hero product with varied commercial motion.";
+    ? "Start frame = opening composition, end frame = closing composition — prefer a subtle transition; avoid melting one scene into another."
+    : "Animate the hero product with commercial motion.";
+  const realismNote =
+    creativity === "subtle"
+      ? "Photorealistic commercial look: locked or near-static camera, very subtle motion only, natural lighting, no plastic skin, no finger morphing, no surreal sparkle trails."
+      : "";
   const multiNote = opts.multiAngle
     ? "Use all reference images as the same product from different angles; cut-like energy between angles while keeping identity consistent."
     : "";
   return joinParts(
     frameNote,
     motion,
+    realismNote,
     multiNote,
     "Keep the same product identity — do not morph into a different item.",
   );
@@ -458,12 +581,33 @@ export function buildImageToVideoPrompt(
   return buildWizardVideoPrompt(templateId, vars, opts);
 }
 
+/** Nano Banana still for one storyboard scene (product from IMAGE 1). */
+export function buildStoryboardSceneImagePrompt(
+  scene: StoryboardScenePlan,
+  plan: VideoStoryboardPlan,
+  vars: PromptVariables,
+): string {
+  return joinParts(
+    `Storyboard still ${scene.imageIndex}/${plan.scenes.length} for a photorealistic product video.`,
+    plan.visualDirection ? `Series look: ${plan.visualDirection}.` : "",
+    plan.theme ? `Story theme: ${plan.theme}.` : "",
+    `Scene role: ${scene.role}.`,
+    scene.imagePrompt,
+    imageReferenceAnchorBlock(vars),
+    "Keep the exact product from IMAGE 1 — same item, colors, materials, and shape. Do not swap for a different product category.",
+    MARKET_HINTS[vars.market],
+    FRAMING_IMAGE[vars.framing],
+    vars.extra,
+    "9:16 vertical, photorealistic commercial photography, no readable text, no watermark, no social UI.",
+  );
+}
+
 /** Second still for start→end image-to-video (Nano Banana). */
 export function buildEndFrameImagePrompt(vars: PromptVariables): string {
   const product = vars.product?.trim() || "the product";
   return joinParts(
     `Create a second vertical ad frame for ${product} — must be a DIFFERENT composition from IMAGE 1.`,
-    `Prefer: bracelet worn on wrist with elegant hand (no face), or dramatic macro close-up of beads with warm gold sparkle.`,
+    buildSecondFrameSceneHint(product, vars.framing),
     `Preserve exact product from IMAGE 1. New angle, lighting accent, and background mood.`,
     MARKET_HINTS[vars.market],
     FRAMING_IMAGE[vars.framing],

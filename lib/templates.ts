@@ -11,7 +11,12 @@ export type TemplateId =
   | "brand-campaign"
   | "brand-video"
   | "creative-video"
+  | "storyboard-video"
+  | "model-wear-reel"
   | "testimonial"
+  | "service-promo"
+  | "pricing-offer"
+  | "website-launch"
   | "custom";
 
 export type MarketingTemplate = {
@@ -213,6 +218,50 @@ export const TEMPLATES: MarketingTemplate[] = [
       "on-screen text, subtitles, logo, watermark, speech, voiceover, dialogue, lyrics, chaotic jitter, blurry, low quality",
   },
   {
+    id: "model-wear-reel",
+    name: "Model lifestyle wear",
+    description: "Product photo → photorealistic model wearing or using the product in a premium ad.",
+    icon: "🧑‍💼",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: false,
+    resolution: "720p",
+    motionStrength: 22,
+    camera: "Static Locked Shot",
+    avoidOnScreenText: true,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Photorealistic lifestyle ad, model wearing {{product}}, premium editorial photography, 9:16",
+    imageEditPromptTemplate:
+      "Photorealistic lifestyle advertisement. Keep exact {{product}} from reference on model wrist/body. Premium mood: {{headline}}. Natural light, realistic skin, 9:16 vertical",
+    videoPromptTemplate:
+      "Very subtle motion on lifestyle {{product}} ad, locked camera, photorealistic, minimal movement, no morphing",
+    negativePrompt:
+      "plastic skin, distorted face, extra fingers, morphing, cartoon, on-screen text, watermark, speech, voiceover, chaotic motion, blurry, low quality",
+  },
+  {
+    id: "storyboard-video",
+    name: "Storyboard product reel",
+    description:
+      "DeepSeek storyboard → Nano Banana scene stills → Seedance multi-image reference video.",
+    icon: "🎞️",
+    aspectRatio: "9:16",
+    duration: "10",
+    fast: false,
+    resolution: "720p",
+    motionStrength: 22,
+    camera: "Static Locked Shot",
+    avoidOnScreenText: true,
+    generateAudio: true,
+    imagePromptTemplate: "Photorealistic storyboard still for {{product}}",
+    imageEditPromptTemplate:
+      "Photorealistic storyboard still. Keep exact {{product}} from reference. Scene: {{headline}}",
+    videoPromptTemplate:
+      "Photorealistic product story reel, hard cuts between scenes, minimal motion per scene, no morphing",
+    negativePrompt:
+      "on-screen text, subtitles, logo, watermark, morphing, melting, plastic skin, finger distortion, speech, voiceover, chaotic motion, blurry, low quality",
+  },
+  {
     id: "brand-campaign",
     name: "Brand campaign set",
     description: "Analyze brand → generate 3 linked posts (hero, selling points, offer).",
@@ -255,6 +304,72 @@ export const TEMPLATES: MarketingTemplate[] = [
       "Very subtle motion on {{product}}, almost static, authentic testimonial feel, no generated text on screen",
     negativePrompt:
       "text, subtitles, logo, speech, voiceover, dialogue, lyrics, exaggerated motion, artificial look",
+  },
+  {
+    id: "service-promo",
+    name: "Professional service promo",
+    description: "Consulting, courses, memberships — trust-led service ad without product packshot.",
+    icon: "🤝",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 26,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Premium vertical service marketing graphic for {{business}}. Main message: {{headline}}. {{subline}}. Professional trustworthy design — consulting, coaching, wellness, education. Clean typography, modern SMB aesthetic, no physical product packshot.",
+    imageEditPromptTemplate:
+      "Create a professional service promo ad. If reference image is a logo or screenshot, integrate it subtly. Business: {{business}}. Headline: {{headline}}. Points: {{subline}}. Trustworthy service marketing — not a product hero shot.",
+    videoPromptTemplate:
+      "Gentle cinematic push-in on service promo graphic, stable camera, professional mood, preserve legible typography",
+    negativePrompt:
+      "product packshot, warehouse, shipping box, speech, voiceover, watermark, cluttered layout, blurry text, low quality",
+  },
+  {
+    id: "pricing-offer",
+    name: "Pricing & offer promo",
+    description: "Plans, packages, limited offers — clear CTA and bullet benefits.",
+    icon: "💳",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 24,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Vertical pricing / offer promo for {{business}}. Theme: {{headline}}. Benefits: {{subline}}. Offer: {{offer}}. Clean pricing-card layout, clear CTA button area, premium but approachable. Do NOT invent specific prices unless offer text includes them.",
+    imageEditPromptTemplate:
+      "Design a pricing or limited-offer promo graphic. Business: {{business}}. Headline: {{headline}}. Bullets: {{subline}}. Offer line: {{offer}}. Clear hierarchy, CTA, modern IG feed style.",
+    videoPromptTemplate:
+      "Subtle push-in on offer graphic, soft shimmer on CTA area, stable camera, keep text readable",
+    negativePrompt:
+      "fake discount numbers, invented HK$ prices, speech, voiceover, watermark, overcrowded text, low quality",
+  },
+  {
+    id: "website-launch",
+    name: "Website / app launch",
+    description: "Promote a URL, landing page, or app — browser or device mockup mood.",
+    icon: "🌐",
+    aspectRatio: "9:16",
+    duration: "6",
+    fast: true,
+    resolution: "480p",
+    motionStrength: 28,
+    camera: "Slow Push In",
+    avoidOnScreenText: false,
+    generateAudio: true,
+    imagePromptTemplate:
+      "Vertical launch promo for {{business}} website or app. Hook: {{headline}}. {{subline}}. Modern device or browser mockup mood, clean UI marketing aesthetic, soft gradient background. Optional subtle logo placement — no fake UI chrome from Instagram.",
+    imageEditPromptTemplate:
+      "Create a website or app launch promo. Use reference image as logo or screenshot if provided. Brand: {{business}}. Headline: {{headline}}. Supporting copy: {{subline}}. Polished tech/SMB launch ad.",
+    videoPromptTemplate:
+      "Gentle motion on launch promo, subtle UI glow, stable camera, no on-screen platform watermarks",
+    negativePrompt:
+      "social media UI overlay, instagram buttons, speech, voiceover, watermark, blurry text, low quality",
   },
   {
     id: "custom",

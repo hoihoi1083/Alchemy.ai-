@@ -1,5 +1,9 @@
 import type { BrandProfile } from "@/lib/brand-profile";
-import { planCreativeVideoPrompt, planVideoPrompt } from "@/lib/video-prompt-plan";
+import {
+  planCreativeVideoPrompt,
+  planProductVideoPrompt,
+  planVideoPrompt,
+} from "@/lib/video-prompt-plan";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -7,7 +11,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let body: {
-    mode?: "brand" | "creative";
+    mode?: "brand" | "creative" | "product";
     brandProfile?: BrandProfile;
     creativeBrief?: string;
     product?: string;
@@ -17,6 +21,11 @@ export async function POST(request: Request) {
     offer?: string;
     duration?: string;
     hasReferenceVideo?: boolean;
+    textToVideo?: boolean;
+    promotionMode?: "physical" | "concept";
+    hasKeyframe?: boolean;
+    imageVisionNote?: string;
+    conceptIdea?: string;
   };
   try {
     body = await request.json();
@@ -24,7 +33,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const mode = body.mode === "creative" ? "creative" : "brand";
+  const mode =
+    body.mode === "creative" || body.mode === "brand" || body.mode === "product"
+      ? body.mode
+      : "product";
   const shared = {
     product: body.product,
     business: body.business,
@@ -44,24 +56,40 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const plan = await planCreativeVideoPrompt({ creativeBrief: brief, ...shared });
+      const plan = await planCreativeVideoPrompt({
+        creativeBrief: brief,
+        ...shared,
+        textToVideo: Boolean(body.textToVideo),
+        promotionMode: body.promotionMode,
+        hasKeyframe: Boolean(body.hasKeyframe),
+        imageVisionNote: body.imageVisionNote,
+        conceptIdea: body.conceptIdea,
+      });
       return NextResponse.json({
         ...plan,
         sourceNote: "Seedance creative video prompt (DeepSeek)",
       });
     }
 
-    const profile = body.brandProfile;
-    if (!profile?.businessName) {
-      return NextResponse.json(
-        { error: "Analyze the brand first (website or social hint)." },
-        { status: 400 },
-      );
+    if (mode === "brand") {
+      const profile = body.brandProfile;
+      if (!profile?.businessName) {
+        return NextResponse.json(
+          { error: "Analyze the brand first (website or social hint)." },
+          { status: 400 },
+        );
+      }
+      const plan = await planVideoPrompt({ brandProfile: profile, ...shared });
+      return NextResponse.json({
+        ...plan,
+        sourceNote: "Seedance video prompt from brand analysis (DeepSeek)",
+      });
     }
-    const plan = await planVideoPrompt({ brandProfile: profile, ...shared });
+
+    const plan = await planProductVideoPrompt(shared);
     return NextResponse.json({
       ...plan,
-      sourceNote: "Seedance video prompt from brand analysis (DeepSeek)",
+      sourceNote: "Seedance video prompt from product context (DeepSeek)",
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Video prompt planning failed.";

@@ -19,7 +19,7 @@ export function ImageCreativeModePicker({ value, onChange }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-300">{m.wizard.imageCreativeLabel}</p>
+      <p className="text-sm font-medium text-slate-700">{m.wizard.imageCreativeLabel}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {IMAGE_CREATIVE_MODES.map((id) => {
           const copy = m.wizard.imageCreativeModes[id];
@@ -30,13 +30,13 @@ export function ImageCreativeModePicker({ value, onChange }: Props) {
               onClick={() => onChange(id)}
               className={`rounded-xl border p-4 text-left transition ${
                 value === id
-                  ? "border-emerald-500/60 bg-emerald-950/40"
-                  : "border-slate-800 bg-slate-900/40 hover:border-slate-600"
+                  ? "border-emerald-400 bg-emerald-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
               <span className="text-xl">{ICONS[id]}</span>
-              <p className="mt-2 text-sm font-semibold text-white">{copy.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{copy.description}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{copy.title}</p>
+              <p className="mt-1 text-xs text-slate-600">{copy.description}</p>
             </button>
           );
         })}

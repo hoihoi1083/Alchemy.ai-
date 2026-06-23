@@ -17,18 +17,18 @@ type Props = {
 function pillClass(active: boolean) {
   return active
     ? "bg-emerald-600 text-white"
-    : "border border-slate-600 text-slate-400";
+    : "border border-slate-300 text-slate-600";
 }
 
 export function VideoSettingsPanel({ value, onChange }: Props) {
   const { m } = useLocale();
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
-      <h3 className="text-sm font-semibold text-white">{m.wizard.videoSettingsTitle}</h3>
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <h3 className="text-sm font-semibold text-slate-900">{m.wizard.videoSettingsTitle}</h3>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-400">{m.wizard.videoSettingsResolution}</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{m.wizard.videoSettingsResolution}</p>
         <div className="flex flex-wrap gap-2">
           {VIDEO_RESOLUTIONS.map((r) => (
             <button
@@ -44,7 +44,7 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-400">{m.wizard.videoSettingsDuration}</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{m.wizard.videoSettingsDuration}</p>
         <div className="flex flex-wrap gap-2">
           {VIDEO_DURATIONS.map((d) => (
             <button
@@ -60,7 +60,7 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-400">{m.wizard.videoSettingsCreativity}</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{m.wizard.videoSettingsCreativity}</p>
         <div className="grid gap-2 sm:grid-cols-3">
           {VIDEO_CREATIVITY_LEVELS.map((c) => (
             <button
@@ -75,8 +75,8 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
               }
               className={`rounded-xl border px-3 py-2.5 text-left text-sm ${
                 value.creativity === c
-                  ? "border-emerald-500/60 bg-emerald-950/40 text-white"
-                  : "border-slate-700 text-slate-400"
+                  ? "border-emerald-400 bg-emerald-50 text-slate-900"
+                  : "border-slate-300 text-slate-600"
               }`}
             >
               {m.wizard.videoCreativityLevels[c]}
@@ -85,7 +85,7 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-sm text-slate-300">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={value.autoSecondFrame}
@@ -93,13 +93,13 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
           className="mt-0.5 size-4 rounded border-slate-600"
         />
         <span>
-          <span className="font-medium text-white">{m.wizard.videoAutoSecondFrame}</span>
+          <span className="font-medium text-slate-900">{m.wizard.videoAutoSecondFrame}</span>
           <span className="mt-1 block text-xs text-slate-500">{m.wizard.videoAutoSecondFrameHint}</span>
         </span>
       </label>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-400">{m.wizard.videoSettingsMotion}</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{m.wizard.videoSettingsMotion}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {VIDEO_MOTION_STYLES.map((s) => (
             <button
@@ -108,8 +108,8 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
               onClick={() => onChange({ ...value, motionStyle: s })}
               className={`rounded-xl border px-3 py-2.5 text-left text-sm ${
                 value.motionStyle === s
-                  ? "border-emerald-500/60 bg-emerald-950/40 text-white"
-                  : "border-slate-700 text-slate-400"
+                  ? "border-emerald-400 bg-emerald-50 text-slate-900"
+                  : "border-slate-300 text-slate-600"
               }`}
             >
               {m.wizard.videoMotionStyles[s]}
@@ -118,7 +118,7 @@ export function VideoSettingsPanel({ value, onChange }: Props) {
         </div>
       </div>
 
-      <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-300">
+      <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={value.fast}

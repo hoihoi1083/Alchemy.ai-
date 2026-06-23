@@ -40,18 +40,18 @@ export function StepIndicator({ mode, currentKey }: Props) {
                 active
                   ? "bg-emerald-500 text-white shadow-lg shadow-emerald-900/40"
                   : done
-                    ? "bg-emerald-900/60 text-emerald-200"
-                    : "bg-slate-800 text-slate-500"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-200 text-slate-500"
               }`}
             >
               {done ? "✓" : n}
             </span>
             <span
-              className={`text-xs font-medium sm:text-sm ${active ? "text-white" : "text-slate-500"}`}
+              className={`text-xs font-medium sm:text-sm ${active ? "text-slate-900" : "text-slate-500"}`}
             >
               {label}
             </span>
-            {n < keys.length && <span className="hidden text-slate-700 sm:inline">→</span>}
+            {n < keys.length && <span className="hidden text-slate-400 sm:inline">→</span>}
           </li>
         );
       })}

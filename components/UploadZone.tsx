@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ChangeEvent } from "react";
+import { useId, type ChangeEvent } from "react";
 
 type Props = {
   label: string;
@@ -21,7 +21,7 @@ export function UploadZone({
   fileName,
   onFile,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     onFile(e.target.files?.[0] ?? null);
@@ -33,7 +33,7 @@ export function UploadZone({
       <p className="mt-1 text-xs text-slate-400">{hint}</p>
 
       <input
-        ref={inputRef}
+        id={inputId}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
@@ -48,25 +48,23 @@ export function UploadZone({
             className="mx-auto max-h-64 w-full rounded-xl border border-slate-700 object-contain"
           />
           {fileName && <p className="truncate text-center text-xs text-slate-500">{fileName}</p>}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
+          <label
+            htmlFor={inputId}
             className="w-full rounded-xl border border-slate-600 py-2.5 text-sm text-slate-300 hover:bg-slate-800/50"
           >
             {changeLabel}
-          </button>
+          </label>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
+        <label
+          htmlFor={inputId}
           className="mt-4 flex w-full flex-col items-center gap-2 rounded-xl bg-emerald-600/90 py-8 text-white transition hover:bg-emerald-500"
         >
           <span className="text-3xl" aria-hidden>
             📷
           </span>
           <span className="text-sm font-semibold">{cta}</span>
-        </button>
+        </label>
       )}
     </div>
   );

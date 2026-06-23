@@ -98,7 +98,8 @@ function applyCampaignFallbacks(
       else if (slide.role === "selling-points")
         next.headline = bulletLines[0] || `Why ${input.product || "choose us"}`;
       else if (slide.role === "offer")
-        next.headline = offerLine || `Shop ${input.product || "now"}`;
+        next.headline =
+          offerLine || (input.product ? `了解${input.product}` : "立即選購");
     }
     if (!next.subline) {
       if (slide.role === "selling-points" && bulletLines.length > 1) {
@@ -157,7 +158,8 @@ function buildPlanPrompt(input: {
     "- visualDna: one-line shared art direction (palette, lighting, typography)",
     "- slides[0] hero: product hero, main hook headline",
     "- slides[1] selling-points: 2-3 bullets as subline, educational/social proof angle",
-    "- slides[2] offer: CTA / limited offer / shop now mood",
+    "- slides[2] offer: CTA / shop now mood — use ONLY user Offer text if provided",
+    "- NEVER invent specific prices (HK$, ¥), discount %, or fake promotions unless Offer field is filled",
     "- composition: per-slide layout note — must keep IMAGE 1 subject visible, never invent unrelated products/scenes",
     "- Use Traditional Chinese copy if HK/TW brand; Simplified if mainland cues",
     "",

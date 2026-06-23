@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI Marketing Studio",
+  title: "alchemy.ai",
   description:
-    "Guided image and video creation for small business marketing — Nano Banana + Seedance",
+    "Product ad and video studio — Nano Banana + Seedance",
 };
 
 export default function RootLayout({

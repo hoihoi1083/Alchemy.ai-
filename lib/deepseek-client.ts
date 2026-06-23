@@ -39,6 +39,8 @@ export async function callDeepSeekChat(
       temperature: options.temperature ?? 0.4,
       max_tokens: options.max_tokens ?? 1200,
       stream: false,
+      // V4 defaults to thinking mode (bills extra output tokens). Planning tasks don't need CoT.
+      thinking: { type: "disabled" },
       ...(options.jsonObject ? { response_format: { type: "json_object" } } : {}),
     }),
   });

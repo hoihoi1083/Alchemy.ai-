@@ -124,6 +124,27 @@ export const TEMPLATE_CONFIG: Record<TemplateId, AdTemplateConfig> = {
       { id: "referenceVideo", onSetup: false, required: false },
     ],
   },
+  "storyboard-video": {
+    defaultImageInputMode: "product-ad",
+    slots: [
+      { id: "product", onSetup: true, required: true },
+      { id: "headline", onSetup: true, required: false },
+      { id: "subline", onSetup: true, required: false },
+      { id: "business", onSetup: true, required: false },
+      { id: "offer", onSetup: true, required: false },
+      { id: "productPhoto", onSetup: false, required: true },
+    ],
+  },
+  "model-wear-reel": {
+    defaultImageInputMode: "product-ad",
+    slots: [
+      { id: "product", onSetup: true, required: false },
+      { id: "headline", onSetup: true, required: false },
+      { id: "subline", onSetup: true, required: false },
+      { id: "business", onSetup: true, required: false },
+      { id: "productPhoto", onSetup: false, required: true },
+    ],
+  },
   testimonial: {
     defaultImageInputMode: "product-ad",
     slots: [
@@ -139,6 +160,38 @@ export const TEMPLATE_CONFIG: Record<TemplateId, AdTemplateConfig> = {
       { id: "subline", onSetup: true, required: false },
       { id: "productPhoto", onSetup: false, required: false },
       { id: "styleRef", onSetup: false, required: false },
+      { id: "referenceVideo", onSetup: false, required: false },
+    ],
+  },
+  "service-promo": {
+    defaultImageInputMode: "describe",
+    slots: [
+      { id: "business", onSetup: true, required: true },
+      { id: "headline", onSetup: true, required: true },
+      { id: "subline", onSetup: true, required: false },
+      { id: "offer", onSetup: true, required: false },
+      { id: "productPhoto", onSetup: false, required: false },
+      { id: "referenceVideo", onSetup: false, required: false },
+    ],
+  },
+  "pricing-offer": {
+    defaultImageInputMode: "describe",
+    slots: [
+      { id: "business", onSetup: true, required: false },
+      { id: "headline", onSetup: true, required: true },
+      { id: "subline", onSetup: true, required: false },
+      { id: "offer", onSetup: true, required: false },
+      { id: "productPhoto", onSetup: false, required: false },
+      { id: "referenceVideo", onSetup: false, required: false },
+    ],
+  },
+  "website-launch": {
+    defaultImageInputMode: "describe",
+    slots: [
+      { id: "business", onSetup: true, required: true },
+      { id: "headline", onSetup: true, required: true },
+      { id: "subline", onSetup: true, required: false },
+      { id: "productPhoto", onSetup: false, required: false },
       { id: "referenceVideo", onSetup: false, required: false },
     ],
   },

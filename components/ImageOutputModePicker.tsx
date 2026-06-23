@@ -7,19 +7,25 @@ type Props = {
   value: ImageOutputMode;
   onChange: (mode: ImageOutputMode) => void;
   lockedCampaign?: boolean;
+  includeTeachingCarousel?: boolean;
 };
 
-export function ImageOutputModePicker({ value, onChange, lockedCampaign }: Props) {
+export function ImageOutputModePicker({
+  value,
+  onChange,
+  lockedCampaign,
+  includeTeachingCarousel,
+}: Props) {
   const { m } = useLocale();
   const options: ImageOutputMode[] = lockedCampaign
     ? ["campaign"]
-    : ["single", "ab", "campaign"];
+    : ["single", "ab", "campaign", "teaching-carousel"];
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-300">{m.wizard.imageOutputModeLabel}</p>
+      <p className="text-sm font-medium text-slate-700">{m.wizard.imageOutputModeLabel}</p>
       <p className="text-xs text-slate-500">{m.wizard.imageOutputModeHint}</p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {options.map((mode) => {
           const copy = m.wizard.imageOutputModes[mode];
           return (
@@ -30,12 +36,12 @@ export function ImageOutputModePicker({ value, onChange, lockedCampaign }: Props
               disabled={lockedCampaign && mode !== "campaign"}
               className={`rounded-xl border p-3 text-left transition ${
                 value === mode
-                  ? "border-emerald-500/60 bg-emerald-950/40"
-                  : "border-slate-800 bg-slate-900/40 hover:border-slate-600"
+                  ? "border-emerald-400 bg-emerald-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
               } ${lockedCampaign ? "cursor-default" : ""}`}
             >
-              <p className="text-sm font-semibold text-white">{copy.title}</p>
-              <p className="mt-1 text-xs text-slate-400">{copy.description}</p>
+              <p className="text-sm font-semibold text-slate-900">{copy.title}</p>
+              <p className="mt-1 text-xs text-slate-600">{copy.description}</p>
             </button>
           );
         })}

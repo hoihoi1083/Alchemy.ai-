@@ -46,13 +46,13 @@ export function AdvancedPromptPanel({
       <p className="text-xs text-slate-500">{m.wizard.advancedHint}</p>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">
+        <label className="mb-1.5 block text-xs font-medium text-slate-600">
           {m.wizard.marketLabel}
         </label>
         <select
           value={market}
           onChange={(e) => onMarketChange(e.target.value as PromptMarket)}
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
         >
           {PROMPT_MARKETS.map((id) => (
             <option key={id} value={id}>
@@ -64,13 +64,13 @@ export function AdvancedPromptPanel({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">
+        <label className="mb-1.5 block text-xs font-medium text-slate-600">
           {m.wizard.framingLabel}
         </label>
         <select
           value={framing}
           onChange={(e) => onFramingChange(e.target.value as SubjectFraming)}
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
         >
           {SUBJECT_FRAMINGS.map((id) => (
             <option key={id} value={id}>
@@ -82,23 +82,23 @@ export function AdvancedPromptPanel({
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">
+        <label className="mb-1.5 block text-xs font-medium text-slate-600">
           {m.wizard.extraLabel}
         </label>
         <input
           value={extra}
           onChange={(e) => onExtraChange(e.target.value)}
           placeholder={m.wizard.extraPlaceholder}
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white"
+          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
         />
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-slate-400">{m.wizard.promptPreview}</span>
+        <span className="text-xs font-medium text-slate-600">{m.wizard.promptPreview}</span>
         <button
           type="button"
           onClick={onResetFromOptions}
-          className="text-xs text-emerald-400 underline hover:text-emerald-300"
+          className="text-xs text-emerald-600 underline hover:text-emerald-500"
         >
           {m.wizard.resetPrompts}
         </button>
@@ -111,7 +111,7 @@ export function AdvancedPromptPanel({
             rows={3}
             value={imagePrompt}
             onChange={(e) => onImagePromptChange(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs leading-relaxed text-slate-200"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs leading-relaxed text-slate-800"
           />
         </div>
       )}
@@ -123,7 +123,7 @@ export function AdvancedPromptPanel({
             rows={3}
             value={videoPrompt}
             onChange={(e) => onVideoPromptChange(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs leading-relaxed text-slate-200"
+            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs leading-relaxed text-slate-800"
           />
         </div>
       )}

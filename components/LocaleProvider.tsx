@@ -31,7 +31,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-    if (stored === "en" || stored === "zh") {
+    if (stored === "en" || stored === "zh" || stored === "zh-cn") {
       setLocaleState(stored);
     } else {
       setLocaleState(detectLocale());
@@ -46,7 +46,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    document.documentElement.lang = locale === "zh" ? "zh-Hant" : "en";
+    document.documentElement.lang =
+      locale === "zh" ? "zh-Hant" : locale === "zh-cn" ? "zh-Hans" : "en";
   }, [locale, ready]);
 
   const value = useMemo(

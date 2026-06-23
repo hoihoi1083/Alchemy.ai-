@@ -86,6 +86,16 @@ export function videoSettingsForWorkflow(
       duration: "6",
     };
   }
+  if (mode === "combined") {
+    return {
+      ...DEFAULT_VIDEO_SETTINGS,
+      motionStyle,
+      autoSecondFrame: false,
+      creativity: "subtle",
+      resolution: "720p",
+      fast: false,
+    };
+  }
   return { ...DEFAULT_VIDEO_SETTINGS, motionStyle };
 }
 

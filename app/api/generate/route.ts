@@ -1,5 +1,9 @@
 import { fal, ApiError } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import {
+  isSeedanceSensitiveError,
+  softenSeedancePromptForModeration,
+} from "@/lib/seedance-moderation";
 
 function formatFalError(e: unknown): string {
   if (e instanceof ApiError) {
@@ -112,6 +116,37 @@ function parseDuration(v: string): "auto" | number {
   return n;
 }
 
+function hasReferenceTag(prompt: string, kind: "Image" | "Video" | "Audio", index: number): boolean {
+  return new RegExp(`@\\s*${kind}\\s*${index}\\b`, "i").test(prompt);
+}
+
+/** Prepend any missing @Image1 / @Video1 tags so reference mode always works. */
+function ensureReferenceTags(
+  prompt: string,
+  imageCount: number,
+  videoCount: number,
+  audioCount: number,
+): { prompt: string; added: string[] } {
+  const added: string[] = [];
+  let result = prompt.trim();
+
+  for (let i = 1; i <= imageCount; i++) {
+    if (!hasReferenceTag(result, "Image", i)) added.push(`@Image${i}`);
+  }
+  for (let i = 1; i <= videoCount; i++) {
+    if (!hasReferenceTag(result, "Video", i)) added.push(`@Video${i}`);
+  }
+  for (let i = 1; i <= audioCount; i++) {
+    if (!hasReferenceTag(result, "Audio", i)) added.push(`@Audio${i}`);
+  }
+
+  if (added.length > 0) {
+    result = `${added.join(" ")} ${result}`.trim();
+  }
+
+  return { prompt: result, added };
+}
+
 function applyAdvancedGuidance(prompt: string, opts: {
   camera?: string;
   motionStrength?: number;
@@ -139,9 +174,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          "Missing FAL_KEY. Add your fal.ai API key to .env.local (see .env.example).",
+          "Video generation is temporarily unavailable. Please try again later.",
       },
-      { status: 500 },
+      { status: 503 },
     );
   }
 
@@ -155,7 +190,8 @@ export async function POST(request: Request) {
   }
 
   const mode = (formData.get("mode") as string) as Mode;
-  const prompt = (formData.get("prompt") as string)?.trim() ?? "";
+  const promptRaw = (formData.get("prompt") as string)?.trim() ?? "";
+  const prompt = softenSeedancePromptForModeration(promptRaw);
   const fast = formData.get("fast") === "true";
   const resolutionBase = (formData.get("resolution") as string) || "720p";
   const resolutionOverride =
@@ -342,14 +378,21 @@ export async function POST(request: Request) {
     }
 
     const imageRefUrl = (formData.get("image_ref_url") as string | null)?.trim();
+    const directRefUrls = (formData.get("reference_image_urls") as string | null)
+      ?.trim()
+      .split(/[\n,]+/)
+      .map((u) => u.trim())
+      .filter(Boolean);
     const uploadedImageUrls =
       nonEmptyImages.length > 0
         ? await Promise.all(nonEmptyImages.map((f) => fal.storage.upload(f)))
         : [];
-    const image_urls =
-      uploadedImageUrls.length > 0 || imageRefUrl
-        ? [...uploadedImageUrls, ...(imageRefUrl ? [imageRefUrl] : [])]
-        : undefined;
+    const image_urls = [
+      ...(directRefUrls ?? []),
+      ...uploadedImageUrls,
+      ...(imageRefUrl ? [imageRefUrl] : []),
+    ];
+    const imageUrlsFinal = image_urls.length > 0 ? image_urls : undefined;
     const video_urls =
       nonEmptyVideos.length > 0
         ? await Promise.all(nonEmptyVideos.map((f) => fal.storage.upload(f)))
@@ -359,19 +402,35 @@ export async function POST(request: Request) {
         ? await Promise.all(nonEmptyAudios.map((f) => fal.storage.upload(f)))
         : undefined;
 
-    if (!video_urls?.length) {
+    const hasRefs =
+      (imageUrlsFinal?.length ?? 0) > 0 ||
+      (video_urls?.length ?? 0) > 0 ||
+      (audio_urls?.length ?? 0) > 0;
+
+    if (!hasRefs) {
       return NextResponse.json(
         {
           error:
-            "Reference-to-video requires a reference MP4. Your clip was not received — re-upload and use “Inspired by reference video”.",
+            "Reference-to-video needs at least one reference image or video. Upload images and use @Image1, @Image2… in your prompt.",
         },
         { status: 400 },
       );
     }
 
+    const imageCount = imageUrlsFinal?.length ?? 0;
+    const videoCount = video_urls?.length ?? 0;
+    const audioCount = audio_urls?.length ?? 0;
+    const { prompt: taggedPrompt, added: addedTags } = ensureReferenceTags(
+      common.prompt,
+      imageCount,
+      videoCount,
+      audioCount,
+    );
+
     const referenceInput = {
       ...common,
-      ...(image_urls?.length ? { image_urls } : {}),
+      prompt: taggedPrompt,
+      ...(imageUrlsFinal?.length ? { image_urls: imageUrlsFinal } : {}),
       ...(video_urls?.length ? { video_urls } : {}),
       ...(audio_urls?.length ? { audio_urls } : {}),
     };
@@ -401,12 +460,27 @@ export async function POST(request: Request) {
       generationMode: "reference-to-video",
       endpoint: endpointFor("reference", fast, formData),
       referenceVideoCount: nonEmptyVideos.length,
-      referenceImageCount: image_urls?.length ?? 0,
-      ...(notes.length ? { note: notes.join(" ") } : {}),
+      referenceImageCount: imageUrlsFinal?.length ?? 0,
+      ...(addedTags.length
+        ? { note: [...notes, `Auto-added tags: ${addedTags.join(", ")}`].join(" ") }
+        : notes.length
+          ? { note: notes.join(" ") }
+          : {}),
     });
   } catch (e: unknown) {
     console.error("[api/generate]", e);
     const message = formatFalError(e);
+    if (isSeedanceSensitiveError(message)) {
+      return NextResponse.json(
+        {
+          error: message,
+          code: "SEEDANCE_SENSITIVE_CONTENT",
+          hint:
+            "Seedance blocked this clip (violence/combat framing). Try a calmer prompt: no weapons, opponents, or standoffs — figures at rest, peaceful pause, arms at sides. A combat-looking reference image can also trigger this.",
+        },
+        { status: 422 },
+      );
+    }
     const status =
       e instanceof ApiError && e.status >= 400 && e.status < 600 ? e.status : 502;
     return NextResponse.json({ error: message }, { status });

@@ -63,6 +63,7 @@ function banana2Input(
   imageUrls: string[],
   aspectRatio: string,
   numImages: number,
+  opts?: { limitGenerations?: boolean },
 ): Record<string, unknown> {
   return {
     prompt,
@@ -70,14 +71,28 @@ function banana2Input(
     aspect_ratio: aspectRatio,
     num_images: numImages,
     resolution: "1K" as const,
-    limit_generations: true,
+    limit_generations: opts?.limitGenerations ?? true,
   };
+}
+
+async function mirrorImageToFalStorage(url: string): Promise<string> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`Could not fetch source image for refine (${res.status}).`);
+  }
+  const contentType = res.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+  const bytes = await res.arrayBuffer();
+  const file = new File([bytes], "refine-source.png", { type: contentType });
+  return fal.storage.upload(file);
 }
 
 export async function POST(request: Request) {
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
-    return NextResponse.json({ error: "Missing FAL_KEY in .env.local." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Image generation is temporarily unavailable. Please try again later." },
+      { status: 503 },
+    );
   }
   fal.config({ credentials: key });
 
@@ -228,12 +243,25 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { prompt?: string; endpoint?: string; aspect_ratio?: string; num_images?: number }
+    | {
+        prompt?: string;
+        endpoint?: string;
+        aspect_ratio?: string;
+        num_images?: number;
+        image_urls?: string[];
+        mode?: string;
+      }
     | null;
   const prompt = body?.prompt?.trim() || "";
   const endpoint = body?.endpoint?.trim() || defaultTextEndpoint();
-  const aspectRatio = aspectRatioForApi(body?.aspect_ratio?.trim() || "9:16");
+  const isRefine = body?.mode === "refine" || (body?.image_urls?.length ?? 0) > 0;
+  const aspectRatio = aspectRatioForApi(
+    body?.aspect_ratio?.trim() || (isRefine ? "auto" : "9:16"),
+  );
   const numImages = Math.min(4, Math.max(1, body?.num_images ?? 1));
+  const imageUrls = (body?.image_urls ?? []).filter(
+    (u): u is string => typeof u === "string" && u.startsWith("http"),
+  );
 
   if (!prompt) {
     return NextResponse.json(
@@ -242,9 +270,28 @@ export async function POST(request: Request) {
     );
   }
 
+  if (imageUrls.length > 0 && !endpoint.includes("/edit")) {
+    return NextResponse.json(
+      { error: "Image refine requires an edit endpoint (e.g. nano-banana-2/edit)." },
+      { status: 400 },
+    );
+  }
+
   try {
+    const hostedUrls =
+      imageUrls.length > 0
+        ? await Promise.all(imageUrls.map((url) => mirrorImageToFalStorage(url)))
+        : [];
     const result = await fal.subscribe(endpoint, {
-      input: { prompt, aspect_ratio: aspectRatio, num_images: numImages },
+      input:
+        hostedUrls.length > 0
+          ? {
+              ...banana2Input(prompt, hostedUrls, aspectRatio, numImages, {
+                limitGenerations: false,
+              }),
+              seed: Math.floor(Math.random() * 2_147_483_647),
+            }
+          : { prompt, aspect_ratio: aspectRatio, num_images: numImages },
       logs: true,
     });
     const outUrls = extractImageUrls(result.data);
@@ -259,12 +306,22 @@ export async function POST(request: Request) {
       );
     }
 
+    if (imageUrls.length > 0 && outUrls.every((out) => imageUrls.includes(out))) {
+      return NextResponse.json(
+        {
+          error:
+            "The model returned the same image. Try a more specific fix note (e.g. “remove the logo in the top-right corner”).",
+        },
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json({
       imageUrl: outUrls[0],
       imageUrls: outUrls,
       requestId: result.requestId,
       endpoint,
-      mode: "text",
+      mode: hostedUrls.length > 0 ? "refine" : "text",
       variantCount: outUrls.length,
     });
   } catch (e: unknown) {

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import type { BrandProfile } from "@/lib/brand-profile";
 import type { CampaignPlan } from "@/lib/campaign-types";
 import { planCampaign } from "@/lib/campaign-plan";
-import { defaultEditEndpoint } from "@/lib/image-endpoints";
+import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
 import {
   buildCampaignSlideImagePrompt,
   buildPromptVariables,
@@ -55,7 +55,10 @@ function aspectRatioForApi(ratio: string): string {
 export async function POST(request: Request) {
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
-    return NextResponse.json({ error: "Missing FAL_KEY in .env.local." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Campaign generation is temporarily unavailable. Please try again later." },
+      { status: 503 },
+    );
   }
   fal.config({ credentials: key });
 
@@ -68,9 +71,8 @@ export async function POST(request: Request) {
 
   const reference = formData.get("reference_image");
   const hasProduct = reference instanceof File && reference.size > 0;
-  if (!hasProduct) {
-    return NextResponse.json({ error: "Upload a product photo for campaign generation." }, { status: 400 });
-  }
+  const promotionMode = ((formData.get("promotion_mode") as string | null)?.trim() ||
+    "physical") as "physical" | "concept";
 
   const visualStyle = ((formData.get("visual_style") as string | null)?.trim() ||
     "product") as VisualStyleId;
@@ -84,7 +86,11 @@ export async function POST(request: Request) {
     }
   }
 
-  if (requiresBrandProfileForImages(visualStyle) && !brandProfile?.businessName) {
+  if (
+    promotionMode !== "concept" &&
+    requiresBrandProfileForImages(visualStyle) &&
+    !brandProfile?.businessName
+  ) {
     return NextResponse.json(
       { error: "Analyze the brand first (website or social hint)." },
       { status: 400 },
@@ -105,7 +111,9 @@ export async function POST(request: Request) {
   const aspectRatio = aspectRatioForApi(
     (formData.get("aspect_ratio") as string | null)?.trim() || "9:16",
   );
-  const endpoint = (formData.get("endpoint") as string | null)?.trim() || defaultEditEndpoint();
+  const endpoint =
+    (formData.get("endpoint") as string | null)?.trim() ||
+    (hasProduct ? defaultEditEndpoint() : defaultTextEndpoint());
 
   const vars = buildPromptVariables({
     product: productName,
@@ -144,7 +152,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const productUrl = await fal.storage.upload(reference as File);
+    const productUrl = hasProduct ? await fal.storage.upload(reference as File) : null;
     const slides: Array<{
       role: string;
       title: string;
@@ -163,12 +171,13 @@ export async function POST(request: Request) {
         brandProfile,
         i,
         plan.slides.length,
+        hasProduct,
       );
 
       const result = await fal.subscribe(endpoint, {
         input: {
           prompt,
-          image_urls: [productUrl],
+          ...(productUrl ? { image_urls: [productUrl] } : {}),
           aspect_ratio: aspectRatio,
           num_images: 1,
           resolution: "1K" as const,

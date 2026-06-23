@@ -1,5 +1,9 @@
 import type { TemplateId } from "@/lib/templates";
 import type { WorkflowMode } from "@/lib/workflow-mode";
+import type { PromotionMode } from "@/lib/promotion-mode";
+import {
+  visualStyleAllowedForPromotion,
+} from "@/lib/promotion-styles";
 
 /** Beginner-facing look — maps to template tuning + auto style hints for AI prompts. */
 export type VisualStyleId =
@@ -11,7 +15,12 @@ export type VisualStyleId =
   | "brand-campaign"
   | "brand-video"
   | "creative-video"
-  | "paper-layout";
+  | "storyboard-video"
+  | "model-wear"
+  | "paper-layout"
+  | "service-promo"
+  | "pricing-offer"
+  | "website-launch";
 
 export function isBrandVisualStyle(id: VisualStyleId): boolean {
   return id === "brand-fit" || id === "brand-campaign" || id === "brand-video";
@@ -25,9 +34,13 @@ export function isCreativeVideoStyle(id: VisualStyleId): boolean {
   return id === "creative-video";
 }
 
-/** Video-only styles where DeepSeek writes the Seedance prompt before generate. */
+export function isStoryboardVideoStyle(id: VisualStyleId): boolean {
+  return id === "storyboard-video";
+}
+
+/** Video styles where DeepSeek writes the Seedance prompt (storyboard, brand, creative). */
 export function isAiPlannedVideoStyle(id: VisualStyleId): boolean {
-  return id === "brand-video" || id === "creative-video";
+  return id === "brand-video" || id === "creative-video" || id === "storyboard-video";
 }
 
 /** Image campaign / brand-fit — needs analyze-brand before generate. */
@@ -44,6 +57,10 @@ const IMAGE_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "info-poster",
   "brand-fit",
   "brand-campaign",
+  "model-wear",
+  "service-promo",
+  "pricing-offer",
+  "website-launch",
 ]);
 
 /** Video-step brand AI prompt — hidden in image-only workflow. */
@@ -52,17 +69,33 @@ const VIDEO_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "creative-video",
 ]);
 
+/** Combined workflow only — multi-scene storyboard reel. */
+const COMBINED_ONLY_VISUAL_STYLE_IDS = new Set<VisualStyleId>(["storyboard-video"]);
+
 export function isVisualStyleAllowedForWorkflow(
   id: VisualStyleId,
   mode: WorkflowMode,
 ): boolean {
   if (mode === "video-only" && IMAGE_FIRST_VISUAL_STYLE_IDS.has(id)) return false;
-  if (mode === "image-only" && VIDEO_FIRST_VISUAL_STYLE_IDS.has(id)) return false;
+  if (
+    (mode === "image-only" || mode === "combined") &&
+    VIDEO_FIRST_VISUAL_STYLE_IDS.has(id)
+  ) {
+    return false;
+  }
+  if (mode !== "combined" && COMBINED_ONLY_VISUAL_STYLE_IDS.has(id)) return false;
   return true;
 }
 
-export function visualStylesForWorkflow(mode: WorkflowMode): VisualStyleDef[] {
-  return VISUAL_STYLES.filter((s) => isVisualStyleAllowedForWorkflow(s.id, mode));
+export function visualStylesForWorkflow(
+  mode: WorkflowMode,
+  promotionMode: PromotionMode = "physical",
+): VisualStyleDef[] {
+  return VISUAL_STYLES.filter(
+    (s) =>
+      isVisualStyleAllowedForWorkflow(s.id, mode) &&
+      visualStyleAllowedForPromotion(s.id, promotionMode),
+  );
 }
 
 export type VisualStyleDef = {
@@ -100,6 +133,14 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
       "Warm inviting local-shop promotional mood: cozy lighting, approachable retail atmosphere. Emphasize shop name and offer when provided.",
   },
   {
+    id: "model-wear",
+    icon: "🧑‍💼",
+    templateId: "model-wear-reel",
+    usesCompositor: false,
+    promptHint:
+      "Photorealistic lifestyle model wearing or using the product — premium editorial ad look, category-appropriate pose (wrist, demo, feet, etc.).",
+  },
+  {
     id: "info-poster",
     icon: "📋",
     templateId: "info-poster",
@@ -135,11 +176,43 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
     promptHint: "",
   },
   {
+    id: "storyboard-video",
+    icon: "🎞️",
+    templateId: "storyboard-video",
+    usesCompositor: false,
+    promptHint:
+      "Photorealistic multi-scene product reel: DeepSeek plans story beats and scene stills for any product category, then Seedance reference-to-video with @Image tags.",
+  },
+  {
     id: "paper-layout",
     icon: "📄",
     templateId: "paper-sticker-reel",
     usesCompositor: true,
     promptHint: "",
+  },
+  {
+    id: "service-promo",
+    icon: "🤝",
+    templateId: "service-promo",
+    usesCompositor: false,
+    promptHint:
+      "Professional service marketing: trust, expertise, coaching, consulting, courses, memberships — typography-led, no product packshot.",
+  },
+  {
+    id: "pricing-offer",
+    icon: "💳",
+    templateId: "pricing-offer",
+    usesCompositor: false,
+    promptHint:
+      "Pricing, packages, or limited-time offer graphic — clear CTA, benefit bullets, modern feed-friendly layout.",
+  },
+  {
+    id: "website-launch",
+    icon: "🌐",
+    templateId: "website-launch",
+    usesCompositor: false,
+    promptHint:
+      "Website or app launch promo — device/browser mockup mood, clean tech marketing, logo or screenshot optional.",
   },
 ];
 
