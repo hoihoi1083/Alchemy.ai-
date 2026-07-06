@@ -1851,8 +1851,6 @@ export function useStudioWizard(promotionMode: PromotionMode) {
         return m.errors.needReferenceImage;
       case "reference_analyzing":
         return m.wizard.referenceBriefAnalyzingWait;
-      case "need_product_photo":
-        return m.errors.needPhoto;
       default:
         return m.errors.needHeadline;
     }

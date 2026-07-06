@@ -9,8 +9,7 @@ export type SetupImageGateReason =
   | "need_headline"
   | "need_product_name"
   | "need_reference_image"
-  | "reference_analyzing"
-  | "need_product_photo";
+  | "reference_analyzing";
 
 export function isContentResearchImagePath(
   promptExtra: string,
@@ -80,18 +79,6 @@ export function evaluateProceedToImageGate(input: {
     return "reference_analyzing";
   }
 
-  if (input.promotionMode === "physical") {
-    if (
-      input.imageCreativeMode === "reference-concept" &&
-      input.hasReferenceImage &&
-      !input.hasProductPhoto
-    ) {
-      return "need_product_photo";
-    }
-    if (input.visualStyleId === "info-poster" && !input.hasProductPhoto) {
-      return "need_product_photo";
-    }
-  }
-
+  // Product photo is collected on the Image step (checklist marks it "next step").
   return null;
 }

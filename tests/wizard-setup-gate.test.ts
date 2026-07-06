@@ -55,14 +55,14 @@ describe("wizard setup → image gate", () => {
     assert.equal(evaluateProceedToImageGate(base), null);
   });
 
-  it("blocks physical reference-concept without product photo", () => {
+  it("allows physical reference-concept without product photo on setup (upload on image step)", () => {
     assert.equal(
       evaluateProceedToImageGate({
         ...base,
         promotionMode: "physical",
         hasProductPhoto: false,
       }),
-      "need_product_photo",
+      null,
     );
   });
 });
