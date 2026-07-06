@@ -1,10 +1,14 @@
 import { analyzeBrandFromSources } from "@/lib/brand-analyze";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   let body: { websiteUrl?: string; socialHint?: string };
   try {
     body = await request.json();

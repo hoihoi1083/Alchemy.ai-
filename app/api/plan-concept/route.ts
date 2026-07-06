@@ -1,11 +1,18 @@
 import { fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 import {
   analyzeConceptReferenceImage,
   conceptImageVisionBlock,
 } from "@/lib/concept-image-vision";
 import { planConceptWizard } from "@/lib/concept-wizard-plan";
 import type { PromptMarket } from "@/lib/prompts";
+import {
+  briefFromConceptVision,
+  briefFromUserTextOnly,
+  briefToVisionNote,
+  mergeUserReferenceBrief,
+} from "@/lib/user-reference-brief";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -47,15 +54,25 @@ function parseConceptBody(fd: FormData): ConceptRequest {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const contentType = request.headers.get("content-type") || "";
   let body: ConceptRequest;
   let referenceImageVision: string | undefined;
+  let userReferenceBrief: ReturnType<typeof briefFromUserTextOnly> = null;
   let hasReferenceImage = false;
 
   try {
     if (contentType.includes("multipart/form-data")) {
       const fd = await request.formData();
       body = parseConceptBody(fd);
+      userReferenceBrief = briefFromUserTextOnly({
+        conceptIdea: body.conceptIdea,
+        headline: body.headline,
+        subline: body.subline,
+        promptExtra: body.promptExtra,
+      });
       const ref = fd.get("reference_image") as File | null;
       if (ref && ref.size > 0) {
         hasReferenceImage = true;
@@ -65,9 +82,23 @@ export async function POST(request: Request) {
           conceptIdea: body.conceptIdea,
         });
         referenceImageVision = conceptImageVisionBlock(vision);
+        userReferenceBrief = mergeUserReferenceBrief(
+          briefFromConceptVision(vision, {
+            conceptIdea: body.conceptIdea,
+            headline: body.headline,
+            subline: body.subline,
+          }),
+          userReferenceBrief,
+        );
       }
     } else {
       body = await request.json();
+      userReferenceBrief = briefFromUserTextOnly({
+        conceptIdea: body.conceptIdea,
+        headline: body.headline,
+        subline: body.subline,
+        promptExtra: body.promptExtra,
+      });
     }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Invalid request body.";
@@ -77,16 +108,23 @@ export async function POST(request: Request) {
   try {
     const draft = await planConceptWizard({
       ...body,
-      hasReferenceImage,
+      hasReferenceImage: hasReferenceImage || Boolean(userReferenceBrief),
       referenceImageVision,
+      userReferenceBrief: userReferenceBrief ?? undefined,
     });
+    const imageVisionNote = userReferenceBrief
+      ? briefToVisionNote(userReferenceBrief)
+      : referenceImageVision;
     return NextResponse.json({
       draft,
-      imageVisionNote: referenceImageVision,
-      hasReferenceImage,
+      referenceBrief: userReferenceBrief,
+      imageVisionNote,
+      hasReferenceImage: hasReferenceImage || Boolean(userReferenceBrief),
       sourceNote: hasReferenceImage
-        ? "Concept wizard brief with reference image (DeepSeek + vision)"
-        : "Concept wizard brief (DeepSeek)",
+        ? "Concept brief from your upload + text (vision + DeepSeek)"
+        : userReferenceBrief
+          ? "Concept brief from your text (DeepSeek)"
+          : "Concept wizard brief (DeepSeek)",
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Concept planning failed.";

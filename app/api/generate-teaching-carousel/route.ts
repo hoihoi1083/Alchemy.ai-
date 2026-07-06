@@ -1,9 +1,23 @@
 import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
-import { buildPromptVariables, type PromptMarket, type SubjectFraming } from "@/lib/prompt-variables";
+import {
+  buildPromptVariables,
+  buildTeachingCarouselSlideImagePrompt,
+  resolveImagePromptMode,
+  type PromptMarket,
+  type SubjectFraming,
+} from "@/lib/prompt-variables";
+import { DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT, MAX_TEACHING_CAROUSEL_SLIDE_COUNT } from "@/lib/teaching-carousel-types";
 import { planTeachingCarousel } from "@/lib/teaching-carousel-plan";
+import { isPromotionMode } from "@/lib/promotion-mode";
+import {
+  parseStrategyFromFormData,
+  referenceStrategyPromptBlock,
+} from "@/lib/reference-strategy";
 import type { VisualStyleId } from "@/lib/visual-styles";
+import { artStyleSystemPrompt, resolveArtStyleId } from "@/lib/art-style";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -39,6 +53,9 @@ function aspectRatioForApi(ratio: string): string {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
     return NextResponse.json(
@@ -57,12 +74,15 @@ export async function POST(request: Request) {
 
   const visualStyle = ((formData.get("visual_style") as string | null)?.trim() ||
     "info-poster") as VisualStyleId;
+  const artStyleId = resolveArtStyleId((formData.get("art_style") as string | null)?.trim());
+  const promotionModeRaw = (formData.get("promotion_mode") as string | null)?.trim() || "";
+  const promotionMode = isPromotionMode(promotionModeRaw) ? promotionModeRaw : "physical";
   const product = (formData.get("product_name") as string | null)?.trim() || "";
   const business = (formData.get("business") as string | null)?.trim() || "";
   const headline = (formData.get("headline") as string | null)?.trim() || "";
   const subline = (formData.get("subline") as string | null)?.trim() || "";
   const offer = (formData.get("offer") as string | null)?.trim() || "";
-  const promptExtra = (formData.get("prompt_extra") as string | null)?.trim() || "";
+  const promptExtraRaw = (formData.get("prompt_extra") as string | null)?.trim() || "";
   const promptMarket = ((formData.get("prompt_market") as string | null)?.trim() ||
     "hk") as PromptMarket;
   const subjectFraming = ((formData.get("subject_framing") as string | null)?.trim() ||
@@ -71,14 +91,37 @@ export async function POST(request: Request) {
     (formData.get("aspect_ratio") as string | null)?.trim() || "4:5",
   );
   const reference = formData.get("reference_image");
-  const hasReference = reference instanceof File && reference.size > 0;
-  const endpoint = (formData.get("endpoint") as string | null)?.trim() ||
-    (hasReference ? defaultEditEndpoint() : defaultTextEndpoint());
-  const slideCount = Math.min(6, Math.max(4, Number(formData.get("slide_count") || 4)));
+  const styleRef = formData.get("style_reference_image");
+  const hasProduct = reference instanceof File && reference.size > 0;
+  const hasStyle = styleRef instanceof File && styleRef.size > 0;
+  const { strategy, brief } = parseStrategyFromFormData(formData);
+  const strategyBlock = brief ? referenceStrategyPromptBlock(brief, strategy) : "";
+  const carouselRefs = formData
+    .getAll("carousel_reference_images")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  const carouselExtra =
+    carouselRefs.length > 0
+      ? strategy.kind === "layout-transfer"
+        ? `Reference carousel has ${1 + carouselRefs.length} slides in order — mirror palette, typography rhythm, and layout grid family from reference; each output slide maps to one reference panel/row where possible.`
+        : `Reference carousel has ${1 + carouselRefs.length} slides in order — match palette, typography rhythm, and pacing (style-only; distinct layout per output slide).`
+      : "";
+  const promptExtra = [promptExtraRaw, strategyBlock, carouselExtra].filter(Boolean).join(" | ");
+  const referenceImageMode = strategy.referenceImageMode;
+  const endpoint =
+    (formData.get("endpoint") as string | null)?.trim() ||
+    (strategy.sendPixelsToFal ? defaultEditEndpoint() : defaultTextEndpoint());
+  const slideCount = Math.min(
+    MAX_TEACHING_CAROUSEL_SLIDE_COUNT,
+    Math.max(DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT, Number(formData.get("slide_count") || DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT)),
+  );
+  const systemPrompt = artStyleSystemPrompt(artStyleId);
 
   try {
     const plan = await planTeachingCarousel({
       visualStyleId: visualStyle,
+      promotionMode,
+      artStyleId,
+      promptMarket: promptMarket,
       product,
       business,
       headline,
@@ -86,6 +129,9 @@ export async function POST(request: Request) {
       offer,
       promptExtra,
       slideCount,
+      referenceStrategyKind:
+        strategy.kind === "layout-transfer" ? "layout-transfer" : strategy.kind === "style-only" ? "style-only" : "none",
+      carouselSlides: brief?.carouselSlides,
     });
     const vars = buildPromptVariables({
       product,
@@ -96,8 +142,27 @@ export async function POST(request: Request) {
       market: promptMarket,
       framing: subjectFraming,
       extra: promptExtra,
+      artStyle: artStyleId,
     });
-    const referenceUrl = hasReference ? await fal.storage.upload(reference as File) : null;
+    const promptMode = resolveImagePromptMode(
+      visualStyle,
+      strategy.useReferenceConceptPrompts ? "reference-concept" : "promo-ai",
+      { promotionMode, workflowMode: "image-only" },
+    );
+
+    let imageUrlsForFal: string[] | null = null;
+    if (strategy.sendPixelsToFal) {
+      imageUrlsForFal = [];
+      if (strategy.useDualImage && hasStyle && hasProduct) {
+        imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
+        imageUrlsForFal.push(await fal.storage.upload(reference as File));
+      } else if (hasProduct) {
+        imageUrlsForFal.push(await fal.storage.upload(reference as File));
+      } else if (hasStyle) {
+        imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
+      }
+    }
+
     const slides: Array<{
       role: string;
       title: string;
@@ -107,27 +172,31 @@ export async function POST(request: Request) {
     }> = [];
 
     for (const slide of plan.slides) {
-      const prompt = [
-        `Create one page of an educational carousel (${slide.index}/${plan.slides.length}).`,
-        `Theme: ${plan.theme}.`,
-        `Shared visual DNA: ${plan.visualDna}.`,
-        `Slide role: ${slide.role}.`,
-        `Slide title: ${slide.title}.`,
-        `Slide body: ${slide.body}.`,
-        `Takeaway line: ${slide.takeaway}.`,
-        `Composition: ${slide.composition}.`,
-        `Audience market style: ${vars.market}.`,
-        "Traditional Chinese typography, high readability, no watermark.",
-      ].join(" ");
+      const carouselSlideRef = brief?.carouselSlides?.[slide.index - 1];
+      const prompt = buildTeachingCarouselSlideImagePrompt(
+        vars,
+        plan,
+        slide,
+        plan.slides.length,
+        promptMode,
+        null,
+        referenceImageMode,
+        {
+          visualStyleId: visualStyle,
+          referenceConcept: strategy.useReferenceConceptPrompts,
+          carouselSlideRef,
+        },
+      );
 
       const result = await fal.subscribe(endpoint, {
         input: {
           prompt,
-          ...(referenceUrl ? { image_urls: [referenceUrl] } : {}),
+          ...(imageUrlsForFal?.length ? { image_urls: imageUrlsForFal } : {}),
           aspect_ratio: aspectRatio,
           num_images: 1,
           resolution: "1K" as const,
           limit_generations: true,
+          ...(systemPrompt ? { system_prompt: systemPrompt } : {}),
         },
         logs: true,
       });
@@ -147,6 +216,7 @@ export async function POST(request: Request) {
       });
     }
 
+    await trackUsage(auth.user.userId, "campaign");
     return NextResponse.json({
       plan,
       slides,
@@ -155,6 +225,9 @@ export async function POST(request: Request) {
       endpoint,
       mode: "teaching-carousel",
       slideCount: slides.length,
+      artStyle: artStyleId,
+      referenceMode: referenceImageMode,
+      referenceStrategy: strategy.kind,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : formatFalError(e);
@@ -165,4 +238,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status });
   }
 }
-

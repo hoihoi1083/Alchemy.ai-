@@ -18,11 +18,13 @@ export function secondsToSrtTime(totalSeconds: number): string {
 }
 
 export function buildSrt(segments: TranscriptSegment[]): string {
-  return segments
+  const body = segments
     .map((segment, idx) => {
       const start = secondsToSrtTime(segment.start);
       const end = secondsToSrtTime(segment.end);
       return `${idx + 1}\n${start} --> ${end}\n${segment.text.trim()}\n`;
     })
     .join("\n");
+  // UTF-8 BOM helps ffmpeg/libass render CJK reliably on macOS.
+  return `\uFEFF${body}`;
 }

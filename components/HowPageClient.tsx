@@ -18,7 +18,7 @@ export function HowPageClient() {
           <div className="flex items-center gap-3">
             <LanguageToggle variant="light" />
             <Link
-              href="/studio"
+              href="/start"
               className="rounded-full bg-slate-900 px-5 py-2 text-sm font-medium text-white"
             >
               {m.landing.openStudio}
@@ -34,13 +34,13 @@ export function HowPageClient() {
           <p className="mt-4 max-w-3xl text-base text-slate-600">{m.landing.subtitle}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/studio"
+              href="/start"
               className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white"
             >
               {m.landing.quickStart.quickAd}
             </Link>
             <Link
-              href="/studio"
+              href="/start"
               className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700"
             >
               {m.landing.quickStart.storyboard}
@@ -99,10 +99,10 @@ export function HowPageClient() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-3">
-          <Link
-            href="/studio"
-            className="rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white"
-          >
+            <Link
+              href="/start"
+              className="rounded-full bg-slate-900 px-6 py-3 text-sm font-medium text-white"
+            >
             {m.landing.startCreating}
           </Link>
           <Link

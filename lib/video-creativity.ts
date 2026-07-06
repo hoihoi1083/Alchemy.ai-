@@ -45,8 +45,9 @@ export function creativityMotionHint(
   }
   if (creativity === "cinematic") {
     return [
-      "Premium jewelry TVC feel: orbit reveal, push to macro detail, soft pull-out.",
-      "Layered light movement and bokeh; confident multi-beat pacing.",
+      "Premium vertical Reel / TVC feel: orbit reveal, push to hero detail, soft pull-out or lateral track.",
+      "Layered light movement, background parallax, and subject motion — confident multi-beat pacing within the clip.",
+      "Visible camera travel — not a locked static shot with only a light shimmer.",
     ].join(" ");
   }
   return "Smooth commercial motion with soft shimmer.";

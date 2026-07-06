@@ -13,6 +13,7 @@ export {
   buildWizardImagePrompt,
   buildWizardVideoPrompt,
   resolveImagePromptMode,
+  type ImagePromptContext,
   PROMPT_MARKETS,
   SUBJECT_FRAMINGS,
   type PromptMarket,

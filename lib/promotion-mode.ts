@@ -22,6 +22,9 @@ export function defaultVisualStyleForWorkflow(
   if (workflowMode === "video-only") {
     return mode === "concept" ? "creative-video" : "product";
   }
+  if (mode === "concept" && workflowMode === "image-only") {
+    return "brand-fit";
+  }
   return defaultVisualStyleForPromotion(mode);
 }
 
@@ -36,6 +39,13 @@ export function storePromotionMode(mode: PromotionMode): void {
   window.localStorage.setItem(PROMOTION_MODE_STORAGE_KEY, mode);
 }
 
-export function studioHref(mode: PromotionMode): string {
-  return `/studio?mode=${mode}`;
+export function studioHref(mode: PromotionMode, template?: string): string {
+  const params = new URLSearchParams({ mode });
+  if (template?.trim()) params.set("template", template.trim());
+  return `/studio?${params.toString()}`;
+}
+
+export function startHref(template?: string): string {
+  if (!template?.trim()) return "/start";
+  return `/start?template=${encodeURIComponent(template.trim())}`;
 }

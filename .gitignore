@@ -4,13 +4,20 @@
 .env
 .env*.local
 .pipeline-jobs/
+playwright-report/
+test-results/
+playwright/.clerk/
 .DS_Store
 *.pem
 npm-debug.log*
 
 # Local test / debug artifacts
-.ref-frame.jpg
+tests/output/
 .out-frame.jpg
+.ref-frame.jpg
+.tmp-*/
+.tmp-caption-test/
+.tmp-test.srt
 ref-input.mp4
 captions.srt
 --text-only/

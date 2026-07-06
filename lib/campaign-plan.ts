@@ -72,6 +72,7 @@ function applyCampaignFallbacks(
     offer: string;
     campaignTheme: string;
     brandProfile?: BrandProfile | null;
+    hasReferenceLayout?: boolean;
   },
 ): CampaignPlan {
   const seedHeadline =
@@ -104,13 +105,18 @@ function applyCampaignFallbacks(
     if (!next.subline) {
       if (slide.role === "selling-points" && bulletLines.length > 1) {
         next.subline = bulletLines.slice(1, 4).join(" · ");
-      } else if (slide.role === "offer" && offerLine) {
+      } else if (slide.role === "offer" && offerLine && offerLine !== next.headline) {
         next.subline = offerLine;
       }
     }
     if (!next.composition) {
-      next.composition =
-        i === 0
+      next.composition = input.hasReferenceLayout
+        ? i === 0
+          ? "Hero slide — mirror IMAGE 1 ad layout rhythm; IMAGE 2 product as hero subject"
+          : i === 1
+            ? "Selling-points slide — same IMAGE 1 design language with bullet / feature copy layout"
+            : "Offer slide — same IMAGE 1 design language with CTA / offer badge area"
+        : i === 0
           ? "Hero slide — IMAGE 1 content centered and dominant, brand-matched lighting"
           : i === 1
             ? "Selling-points slide — same IMAGE 1 hero with bullet copy layout"
@@ -139,6 +145,9 @@ function buildPlanPrompt(input: {
   subline: string;
   offer: string;
   brandProfile?: BrandProfile | null;
+  promotionMode?: "physical" | "concept";
+  hasReferenceLayout?: boolean;
+  promptExtra?: string;
 }): string {
   const style = getVisualStyle(input.visualStyleId);
   const brandBlock = input.brandProfile?.businessName
@@ -160,8 +169,20 @@ function buildPlanPrompt(input: {
     "- slides[1] selling-points: 2-3 bullets as subline, educational/social proof angle",
     "- slides[2] offer: CTA / shop now mood — use ONLY user Offer text if provided",
     "- NEVER invent specific prices (HK$, ¥), discount %, or fake promotions unless Offer field is filled",
-    "- composition: per-slide layout note — must keep IMAGE 1 subject visible, never invent unrelated products/scenes",
-    "- Use Traditional Chinese copy if HK/TW brand; Simplified if mainland cues",
+    input.hasReferenceLayout
+      ? "- User uploaded a REFERENCE AD (IMAGE 1) + product photo (IMAGE 2): plan compositions that follow IMAGE 1 layout family (typography hierarchy, graphic components, product staging pose). All on-image copy must come from user fields — never reuse reference poster wording."
+      : "- composition: per-slide layout note — must keep IMAGE 1 subject visible, never invent unrelated products/scenes",
+    "- HK/TW market: ALL Chinese copy in Traditional Chinese (繁體) — never Simplified (简体), even if reference material uses 简体",
+    "- CN market: Simplified Chinese (简体) only",
+    input.promotionMode === "concept"
+      ? "- CONCEPT campaign: editorial IG series with cinematic lifestyle or product-in-scene photos — NOT white infographic posters or classroom edu slides."
+      : "",
+    input.promotionMode === "concept"
+      ? "- visualDna: bold integrated typography, color-graded photography, HK agency mood — each slide uses a DIFFERENT layout."
+      : "",
+    input.promotionMode === "concept"
+      ? "- Offer slide: ONE CTA line only — do not repeat the same phrase as headline and subline."
+      : "",
     "",
     `Visual style preset: ${style.id} — ${style.promptHint || "general product ad"}`,
     input.campaignTheme ? `User campaign brief: ${input.campaignTheme}` : "",
@@ -170,6 +191,7 @@ function buildPlanPrompt(input: {
     input.headline ? `Seed headline: ${input.headline}` : "",
     input.subline ? `Seed selling points: ${input.subline}` : "",
     input.offer ? `Offer: ${input.offer}` : "",
+    input.promptExtra ? `Reference / style notes: ${input.promptExtra}` : "",
     brandBlock,
   ]
     .filter(Boolean)
@@ -185,6 +207,9 @@ type PlanInput = {
   subline?: string;
   offer?: string;
   brandProfile?: BrandProfile | null;
+  promotionMode?: "physical" | "concept";
+  hasReferenceLayout?: boolean;
+  promptExtra?: string;
 };
 
 function fallbackInput(input: PlanInput) {
@@ -212,6 +237,9 @@ export async function planCampaign(input: PlanInput): Promise<CampaignPlan> {
         role: "user",
         content: buildPlanPrompt({
           visualStyleId: input.visualStyleId,
+          promotionMode: input.promotionMode,
+          hasReferenceLayout: input.hasReferenceLayout,
+          promptExtra: input.promptExtra?.trim() || "",
           ...fb,
         }),
       },
@@ -229,7 +257,10 @@ export async function planCampaign(input: PlanInput): Promise<CampaignPlan> {
     basePlan = emptyCampaignPlan();
   }
 
-  const plan = applyCampaignFallbacks(basePlan, fb);
+  const plan = applyCampaignFallbacks(basePlan, {
+    ...fb,
+    hasReferenceLayout: input.hasReferenceLayout,
+  });
 
   if (!plan.slides.every((s) => s.headline.trim())) {
     throw new Error("Could not plan campaign slides. Try adding a headline or campaign theme.");

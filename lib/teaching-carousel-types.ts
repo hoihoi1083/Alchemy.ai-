@@ -14,4 +14,5 @@ export type TeachingCarouselPlan = {
 };
 
 export const DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT = 4;
+export const MAX_TEACHING_CAROUSEL_SLIDE_COUNT = 6;
 

@@ -12,7 +12,6 @@ export const PHYSICAL_ONLY_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "product",
   "dark-premium",
   "model-wear",
-  "storyboard-video",
 ]);
 
 /** Service / website / plan styles — hidden in physical promotion mode. */
@@ -20,6 +19,7 @@ export const CONCEPT_ONLY_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "service-promo",
   "pricing-offer",
   "website-launch",
+  "concept-cinematic",
 ]);
 
 /** Works well for both physical goods and non-physical promos. */
@@ -31,6 +31,7 @@ export const SHARED_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "brand-video",
   "creative-video",
   "paper-layout",
+  "storyboard-video",
 ]);
 
 export function isConceptOnlyVisualStyle(id: VisualStyleId): boolean {
@@ -58,7 +59,7 @@ export function visualStylesForPromotion(
 }
 
 export function conceptPrimaryVisualStyleIds(): VisualStyleId[] {
-  return ["info-poster", "brand-fit", "pricing-offer", "website-launch"];
+  return ["brand-fit", "service-promo", "pricing-offer", "website-launch", "concept-cinematic"];
 }
 
 export function physicalPrimaryVisualStyleIds(): VisualStyleId[] {
@@ -67,6 +68,7 @@ export function physicalPrimaryVisualStyleIds(): VisualStyleId[] {
 
 /** Concept styles that can generate from copy alone (no upload). */
 export function conceptStyleAllowsTextOnlyImage(id: VisualStyleId): boolean {
+  if (id === "concept-cinematic") return false;
   return (
     CONCEPT_ONLY_VISUAL_STYLE_IDS.has(id) ||
     id === "info-poster" ||

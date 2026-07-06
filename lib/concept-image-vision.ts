@@ -6,7 +6,16 @@ const VISION_MODEL = "google/gemini-2.5-flash-lite";
 
 export type ConceptImageVision = {
   sceneSummary: string;
+  /** Main topic/subject of the image. */
+  topic: string;
   subjects: string;
+  /** Legible on-image text — preserve wording. */
+  visibleText: string;
+  contentType: string;
+  /** Layout grid, composition, panel structure. */
+  layoutStyle: string;
+  colorPalette: string;
+  typographyStyle: string;
   mood: string;
   motionHints: string;
 };
@@ -26,7 +35,13 @@ function extractVisionText(data: unknown): string {
 function normalizeVision(parsed: Partial<ConceptImageVision>): ConceptImageVision {
   return {
     sceneSummary: String(parsed.sceneSummary ?? "").trim(),
+    topic: String(parsed.topic ?? "").trim(),
     subjects: String(parsed.subjects ?? "").trim(),
+    visibleText: String(parsed.visibleText ?? "").trim(),
+    contentType: String(parsed.contentType ?? "").trim(),
+    layoutStyle: String(parsed.layoutStyle ?? "").trim(),
+    colorPalette: String(parsed.colorPalette ?? "").trim(),
+    typographyStyle: String(parsed.typographyStyle ?? "").trim(),
     mood: String(parsed.mood ?? "").trim(),
     motionHints: String(parsed.motionHints ?? "").trim(),
   };
@@ -34,8 +49,16 @@ function normalizeVision(parsed: Partial<ConceptImageVision>): ConceptImageVisio
 
 export function conceptImageVisionBlock(vision: ConceptImageVision): string {
   return [
+    vision.topic ? `Topic: ${vision.topic}` : "",
     vision.sceneSummary,
     vision.subjects ? `Subjects: ${vision.subjects}` : "",
+    vision.visibleText
+      ? "Reference contained on-image text — ignore wording; use only user campaign copy in the target script."
+      : "",
+    vision.contentType ? `Content type: ${vision.contentType}` : "",
+    vision.layoutStyle ? `Layout: ${vision.layoutStyle}` : "",
+    vision.colorPalette ? `Colors: ${vision.colorPalette}` : "",
+    vision.typographyStyle ? `Typography: ${vision.typographyStyle}` : "",
     vision.mood ? `Mood: ${vision.mood}` : "",
     vision.motionHints ? `Motion hints: ${vision.motionHints}` : "",
   ]
@@ -52,20 +75,26 @@ export async function analyzeConceptReferenceImage(input: {
       model: VISION_MODEL,
       image_urls: [input.imageUrl],
       system_prompt:
-        "You analyze reference images for short concept/PSA social video ads. Output valid JSON only.",
+        "You analyze reference images for social content creation. Extract BOTH content (topic, text, subjects) AND visual style (layout, colors, typography). Output valid JSON only.",
       prompt: [
-        "Describe this image for a Seedance image-to-video ad prompt.",
+        "The user uploaded this as a STYLE and/or CONTENT reference for what they want to create.",
         "Return JSON only:",
-        '{"sceneSummary":"","subjects":"","mood":"","motionHints":""}',
+        '{"sceneSummary":"","topic":"","subjects":"","visibleText":"","contentType":"","layoutStyle":"","colorPalette":"","typographyStyle":"","mood":"","motionHints":""}',
         "",
         "Rules:",
-        "- sceneSummary: one English sentence of what is visible",
-        "- subjects: people/objects/symbols in frame (no invented elements)",
-        "- mood: lighting, color, emotional tone",
-        "- motionHints: subtle camera/motion that would suit THIS still (orbit, push-in, parallax…) without changing the scene identity",
-        "- This may be a PSA, poster, logo, illustration, or lifestyle scene — not always a product packshot",
-        "- Do NOT invent on-screen text or brands not visible",
-        input.conceptIdea ? `User concept idea: ${input.conceptIdea}` : "",
+        "- topic: what this is ABOUT — specific phrase, not generic category",
+        "- sceneSummary: one sentence of what is visible",
+        "- subjects: people/objects — name recognizable figures when obvious; include roles and props",
+        "- visibleText: transcribe legible on-image text in original language (headlines, stats, labels)",
+        '- contentType: "infographic" | "social-carousel" | "product-ad" | "lifestyle-photo" | "poster" | "screenshot" | "logo" | "other"',
+        "- layoutStyle: composition structure (centered hero + side stats, 3-panel row, dark full-bleed, white edu poster, numbered list…)",
+        "- colorPalette: dominant colors and background (dark charcoal + gold, white + red headlines…)",
+        "- typographyStyle: headline/body treatment (bold Chinese display type, emoji bullets, serif stats…)",
+        "- mood: lighting and emotional tone",
+        "- motionHints: subtle animation that preserves this look",
+        "- Do NOT invent elements not visible",
+        "- Do NOT replace specific subjects with generic terms when identity is obvious",
+        input.conceptIdea ? `User also typed: ${input.conceptIdea}` : "",
       ]
         .filter(Boolean)
         .join("\n"),

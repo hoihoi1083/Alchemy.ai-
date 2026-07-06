@@ -1,5 +1,6 @@
 import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import type { BrandProfile } from "@/lib/brand-profile";
 import {
   buildPromptVariables,
@@ -8,7 +9,23 @@ import {
 } from "@/lib/prompt-variables";
 import type { PromptMarket, SubjectFraming } from "@/lib/prompt-variables";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
+import {
+  IMAGE_LOGO_REFINE_SYSTEM_PROMPT,
+  IMAGE_REFINE_SYSTEM_PROMPT,
+  buildLogoRefinePrompt,
+  isSameImageAsset,
+  type LogoPlacement,
+} from "@/lib/image-refine-prompt";
+import { IMAGE_CANVAS_COMPOSE_SYSTEM_PROMPT } from "@/lib/pro-canvas-compose";
 import type { VisualStyleId } from "@/lib/visual-styles";
+import type { PromotionMode } from "@/lib/promotion-mode";
+import type { WorkflowMode } from "@/lib/workflow-mode";
+import { isPromotionMode } from "@/lib/promotion-mode";
+import {
+  parseStrategyFromFormData,
+  referenceStrategyPromptBlock,
+} from "@/lib/reference-strategy";
+import { resolveArtStyleId, artStyleSystemPrompt } from "@/lib/art-style";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -63,9 +80,9 @@ function banana2Input(
   imageUrls: string[],
   aspectRatio: string,
   numImages: number,
-  opts?: { limitGenerations?: boolean },
+  opts?: { limitGenerations?: boolean; systemPrompt?: string },
 ): Record<string, unknown> {
-  return {
+  const input: Record<string, unknown> = {
     prompt,
     image_urls: imageUrls,
     aspect_ratio: aspectRatio,
@@ -73,6 +90,10 @@ function banana2Input(
     resolution: "1K" as const,
     limit_generations: opts?.limitGenerations ?? true,
   };
+  if (opts?.systemPrompt?.trim()) {
+    input.system_prompt = opts.systemPrompt.trim();
+  }
+  return input;
 }
 
 async function mirrorImageToFalStorage(url: string): Promise<string> {
@@ -86,7 +107,83 @@ async function mirrorImageToFalStorage(url: string): Promise<string> {
   return fal.storage.upload(file);
 }
 
+function parseLogoPlacement(raw: string | null | undefined): LogoPlacement {
+  const v = raw?.trim();
+  if (
+    v === "bottom-right" ||
+    v === "bottom-left" ||
+    v === "top-right" ||
+    v === "top-left" ||
+    v === "center" ||
+    v === "replace"
+  ) {
+    return v;
+  }
+  return "bottom-right";
+}
+
+async function runRefineEdit(opts: {
+  endpoint: string;
+  prompt: string;
+  aspectRatio: string;
+  numImages: number;
+  imageUrls: string[];
+  systemPrompt: string;
+  userId: string;
+  refineSources: string[];
+}): Promise<NextResponse> {
+  const hostedUrls = await Promise.all(opts.imageUrls.map((url) => mirrorImageToFalStorage(url)));
+  const result = await fal.subscribe(opts.endpoint, {
+    input: {
+      ...banana2Input(opts.prompt, hostedUrls, opts.aspectRatio, opts.numImages, {
+        limitGenerations: false,
+        systemPrompt: opts.systemPrompt,
+      }),
+      seed: Math.floor(Math.random() * 2_147_483_647),
+    },
+    logs: true,
+  });
+  const outUrls = extractImageUrls(result.data);
+  if (!outUrls.length) {
+    return NextResponse.json(
+      {
+        error:
+          "Image URL missing in model response. Check endpoint and schema on fal.ai model page.",
+        raw: result.data,
+      },
+      { status: 502 },
+    );
+  }
+
+  const allSources = [...opts.refineSources, ...hostedUrls];
+  if (
+    allSources.length > 0 &&
+    outUrls.every((out) => allSources.some((src) => isSameImageAsset(src, out)))
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "The model returned the same image. Try a more specific fix note (e.g. “remove the logo in the top-right corner”).",
+      },
+      { status: 502 },
+    );
+  }
+
+  await trackUsage(opts.userId, "image");
+  return NextResponse.json({
+    imageUrl: outUrls[0],
+    imageUrls: outUrls,
+    requestId: result.requestId,
+    endpoint: opts.endpoint,
+    mode: "refine",
+    variantCount: outUrls.length,
+  });
+}
+
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
     return NextResponse.json(
@@ -104,6 +201,53 @@ export async function POST(request: Request) {
       formData = await request.formData();
     } catch {
       return NextResponse.json({ error: "Invalid form data." }, { status: 400 });
+    }
+
+    const multipartMode = (formData.get("mode") as string | null)?.trim() || "";
+
+    if (multipartMode === "refine-logo") {
+      const sourceUrl = (formData.get("source_image_url") as string | null)?.trim() || "";
+      const logoFile = formData.get("logo_image");
+      const hasLogo = logoFile instanceof File && logoFile.size > 0;
+      const placement = parseLogoPlacement(
+        (formData.get("logo_placement") as string | null) ?? undefined,
+      );
+      const userNote = (formData.get("user_note") as string | null)?.trim() || "";
+      const endpoint = (formData.get("endpoint") as string | null)?.trim() || defaultEditEndpoint();
+      const aspectRatio = aspectRatioForApi(
+        (formData.get("aspect_ratio") as string | null)?.trim() || "auto",
+      );
+      const numImages = parseNumImages((formData.get("num_images") as string | null)?.trim() ?? "1");
+
+      if (!sourceUrl.startsWith("http")) {
+        return NextResponse.json({ error: "Generate an AI image first, then add a logo." }, { status: 400 });
+      }
+      if (!hasLogo) {
+        return NextResponse.json({ error: "Upload a logo image (PNG with transparency works best)." }, { status: 400 });
+      }
+      if (!endpoint.includes("/edit")) {
+        return NextResponse.json(
+          { error: "Logo refine requires an edit endpoint (e.g. nano-banana-2/edit)." },
+          { status: 400 },
+        );
+      }
+
+      try {
+        const logoUrl = await fal.storage.upload(logoFile as File);
+        const prompt = buildLogoRefinePrompt({ placement, userNote });
+        return await runRefineEdit({
+          endpoint,
+          prompt,
+          aspectRatio,
+          numImages,
+          imageUrls: [sourceUrl, logoUrl],
+          systemPrompt: IMAGE_LOGO_REFINE_SYSTEM_PROMPT,
+          userId: auth.user.userId,
+          refineSources: [sourceUrl, logoUrl],
+        });
+      } catch (e: unknown) {
+        return NextResponse.json({ error: formatFalError(e) }, { status: 502 });
+      }
     }
 
     const imageMode = (formData.get("image_mode") as string | null)?.trim() || "product-ad";
@@ -132,7 +276,11 @@ export async function POST(request: Request) {
       "en") as PromptMarket;
     const subjectFraming = ((formData.get("subject_framing") as string | null)?.trim() ||
       "auto") as SubjectFraming;
-    const promptExtra = (formData.get("prompt_extra") as string | null)?.trim() || "";
+    const promptExtraRaw = (formData.get("prompt_extra") as string | null)?.trim() || "";
+    const { strategy, brief } = parseStrategyFromFormData(formData);
+    const strategyBlock = brief ? referenceStrategyPromptBlock(brief, strategy) : "";
+    const promptExtra = [promptExtraRaw, strategyBlock].filter(Boolean).join(" | ");
+    const artStyleId = resolveArtStyleId((formData.get("art_style") as string | null)?.trim());
     const headline = (formData.get("headline") as string | null)?.trim() || "";
     const subline = (formData.get("subline") as string | null)?.trim() || "";
     const offer = (formData.get("offer") as string | null)?.trim() || "";
@@ -143,11 +291,10 @@ export async function POST(request: Request) {
     );
     const numImages = parseNumImages((formData.get("num_images") as string | null)?.trim() ?? "1");
 
-    const useReferenceConcept =
-      creativeMode === "reference-concept" || (hasProduct && hasStyle);
-    const dualImage = hasProduct && hasStyle;
+    const useReferenceConcept = strategy.useReferenceConceptPrompts;
+    const dualImage = strategy.useDualImage;
 
-    if (creativeMode === "reference-concept" && !dualImage) {
+    if (creativeMode === "reference-concept" && strategy.kind === "layout-transfer" && !dualImage) {
       return NextResponse.json(
         {
           error:
@@ -157,7 +304,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const endpoint = (formData.get("endpoint") as string | null)?.trim() || defaultEditEndpoint();
+    const endpoint =
+      (formData.get("endpoint") as string | null)?.trim() ||
+      (strategy.sendPixelsToFal ? defaultEditEndpoint() : defaultTextEndpoint());
 
     const vars = buildPromptVariables({
       product: productName,
@@ -168,9 +317,19 @@ export async function POST(request: Request) {
       market: promptMarket,
       framing: subjectFraming,
       extra: promptExtra,
+      artStyle: artStyleId,
     });
 
     const visualStyle = (formData.get("visual_style") as string | null)?.trim() || "product";
+    const promotionModeRaw = (formData.get("promotion_mode") as string | null)?.trim() || "";
+    const workflowModeRaw = (formData.get("workflow_mode") as string | null)?.trim() || "";
+    const promotionMode = isPromotionMode(promotionModeRaw) ? promotionModeRaw : undefined;
+    const workflowMode =
+      workflowModeRaw === "image-only" ||
+      workflowModeRaw === "video-only" ||
+      workflowModeRaw === "combined"
+        ? (workflowModeRaw as WorkflowMode)
+        : undefined;
     const brandProfileRaw = (formData.get("brand_profile") as string | null)?.trim() || "";
     let brandProfile: BrandProfile | null = null;
     if (brandProfileRaw) {
@@ -183,10 +342,12 @@ export async function POST(request: Request) {
     const promptMode = resolveImagePromptMode(
       visualStyle,
       useReferenceConcept ? "reference-concept" : creativeMode,
+      { promotionMode, workflowMode },
     );
     if (
       (promptMode === "brand-fit" || visualStyle === "brand-campaign") &&
-      !brandProfile?.businessName
+      !brandProfile?.businessName &&
+      promotionMode !== "concept"
     ) {
       return NextResponse.json(
         { error: "Analyze the brand first (website or social hint)." },
@@ -203,17 +364,21 @@ export async function POST(request: Request) {
 
     try {
       const imageUrls: string[] = [];
-      // Reference concept: concept ref first (IMAGE 1), product second (IMAGE 2).
-      if (useReferenceConcept && dualImage) {
-        if (hasStyle) imageUrls.push(await fal.storage.upload(styleRef as File));
-        if (hasProduct) imageUrls.push(await fal.storage.upload(reference as File));
-      } else {
-        if (hasProduct) imageUrls.push(await fal.storage.upload(reference as File));
-        if (hasStyle) imageUrls.push(await fal.storage.upload(styleRef as File));
+      if (strategy.sendPixelsToFal) {
+        if (useReferenceConcept && dualImage) {
+          if (hasStyle) imageUrls.push(await fal.storage.upload(styleRef as File));
+          if (hasProduct) imageUrls.push(await fal.storage.upload(reference as File));
+        } else if (hasProduct) {
+          imageUrls.push(await fal.storage.upload(reference as File));
+        } else if (hasStyle) {
+          imageUrls.push(await fal.storage.upload(styleRef as File));
+        }
       }
 
       const result = await fal.subscribe(endpoint, {
-        input: banana2Input(finalPrompt, imageUrls, aspectRatio, numImages),
+        input: banana2Input(finalPrompt, imageUrls, aspectRatio, numImages, {
+          systemPrompt: artStyleSystemPrompt(artStyleId),
+        }),
         logs: true,
       });
       const outUrls = extractImageUrls(result.data);
@@ -227,6 +392,7 @@ export async function POST(request: Request) {
         );
       }
 
+      await trackUsage(auth.user.userId, "image");
       return NextResponse.json({
         imageUrl: outUrls[0],
         imageUrls: outUrls,
@@ -254,7 +420,9 @@ export async function POST(request: Request) {
     | null;
   const prompt = body?.prompt?.trim() || "";
   const endpoint = body?.endpoint?.trim() || defaultTextEndpoint();
-  const isRefine = body?.mode === "refine" || (body?.image_urls?.length ?? 0) > 0;
+  const apiMode = body?.mode?.trim();
+  const isCompose = apiMode === "compose";
+  const isRefine = apiMode === "refine" || (!isCompose && (body?.image_urls?.length ?? 0) > 0);
   const aspectRatio = aspectRatioForApi(
     body?.aspect_ratio?.trim() || (isRefine ? "auto" : "9:16"),
   );
@@ -278,20 +446,24 @@ export async function POST(request: Request) {
   }
 
   try {
-    const hostedUrls =
-      imageUrls.length > 0
-        ? await Promise.all(imageUrls.map((url) => mirrorImageToFalStorage(url)))
-        : [];
+    if (imageUrls.length > 0) {
+      const systemPrompt = isCompose
+        ? IMAGE_CANVAS_COMPOSE_SYSTEM_PROMPT
+        : IMAGE_REFINE_SYSTEM_PROMPT;
+      return await runRefineEdit({
+        endpoint,
+        prompt,
+        aspectRatio,
+        numImages,
+        imageUrls,
+        systemPrompt,
+        userId: auth.user.userId,
+        refineSources: imageUrls,
+      });
+    }
+
     const result = await fal.subscribe(endpoint, {
-      input:
-        hostedUrls.length > 0
-          ? {
-              ...banana2Input(prompt, hostedUrls, aspectRatio, numImages, {
-                limitGenerations: false,
-              }),
-              seed: Math.floor(Math.random() * 2_147_483_647),
-            }
-          : { prompt, aspect_ratio: aspectRatio, num_images: numImages },
+      input: { prompt, aspect_ratio: aspectRatio, num_images: numImages },
       logs: true,
     });
     const outUrls = extractImageUrls(result.data);
@@ -306,22 +478,13 @@ export async function POST(request: Request) {
       );
     }
 
-    if (imageUrls.length > 0 && outUrls.every((out) => imageUrls.includes(out))) {
-      return NextResponse.json(
-        {
-          error:
-            "The model returned the same image. Try a more specific fix note (e.g. “remove the logo in the top-right corner”).",
-        },
-        { status: 502 },
-      );
-    }
-
+    await trackUsage(auth.user.userId, "image");
     return NextResponse.json({
       imageUrl: outUrls[0],
       imageUrls: outUrls,
       requestId: result.requestId,
       endpoint,
-      mode: hostedUrls.length > 0 ? "refine" : "text",
+      mode: "text",
       variantCount: outUrls.length,
     });
   } catch (e: unknown) {

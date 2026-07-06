@@ -15,6 +15,7 @@ export type VisualStyleId =
   | "brand-campaign"
   | "brand-video"
   | "creative-video"
+  | "concept-cinematic"
   | "storyboard-video"
   | "model-wear"
   | "paper-layout"
@@ -31,16 +32,25 @@ export function isBrandVideoStyle(id: VisualStyleId): boolean {
 }
 
 export function isCreativeVideoStyle(id: VisualStyleId): boolean {
-  return id === "creative-video";
+  return id === "creative-video" || id === "concept-cinematic";
 }
 
 export function isStoryboardVideoStyle(id: VisualStyleId): boolean {
   return id === "storyboard-video";
 }
 
+export function isConceptCinematicStyle(id: VisualStyleId): boolean {
+  return id === "concept-cinematic";
+}
+
 /** Video styles where DeepSeek writes the Seedance prompt (storyboard, brand, creative). */
 export function isAiPlannedVideoStyle(id: VisualStyleId): boolean {
-  return id === "brand-video" || id === "creative-video" || id === "storyboard-video";
+  return (
+    id === "brand-video" ||
+    id === "creative-video" ||
+    id === "concept-cinematic" ||
+    id === "storyboard-video"
+  );
 }
 
 /** Image campaign / brand-fit — needs analyze-brand before generate. */
@@ -69,8 +79,10 @@ const VIDEO_FIRST_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
   "creative-video",
 ]);
 
-/** Combined workflow only — multi-scene storyboard reel. */
-const COMBINED_ONLY_VISUAL_STYLE_IDS = new Set<VisualStyleId>(["storyboard-video"]);
+/** Combined workflow only — cinematic keyframe → video stitch. */
+const COMBINED_ONLY_VISUAL_STYLE_IDS = new Set<VisualStyleId>([
+  "concept-cinematic",
+]);
 
 export function isVisualStyleAllowedForWorkflow(
   id: VisualStyleId,
@@ -174,6 +186,14 @@ export const VISUAL_STYLES: VisualStyleDef[] = [
     templateId: "creative-video",
     usesCompositor: false,
     promptHint: "",
+  },
+  {
+    id: "concept-cinematic",
+    icon: "🎥",
+    templateId: "creative-video",
+    usesCompositor: false,
+    promptHint:
+      "Cinematic concept short: dramatic rim light, shallow depth of field, rich atmosphere, expressive camera movement, no on-screen text, trailer-like emotional pacing.",
   },
   {
     id: "storyboard-video",

@@ -2,21 +2,33 @@
 
 import { useWizard } from "@/components/studio/WizardContext";
 import type { StoryboardDurationPreset } from "@/hooks/useWizardState";
+import type { StoryboardSceneCount } from "@/lib/ad-pack-preferences";
+import { STORYBOARD_SCENE_COUNTS } from "@/lib/ad-pack-preferences";
 import { TemplateSlotChecklist } from "@/components/TemplateSlotChecklist";
 import { ImageCreativeModePicker } from "@/components/ImageCreativeModePicker";
+import { ReferenceBriefPanel } from "@/components/ReferenceBriefPanel";
 import { ImageInputModePicker } from "@/components/ImageInputModePicker";
 import { UploadZone } from "@/components/UploadZone";
 import { AdvancedPromptPanel } from "@/components/AdvancedPromptPanel";
 import { ImageOutputModePicker } from "@/components/ImageOutputModePicker";
 import { ImageAspectRatioPicker } from "@/components/ImageAspectRatioPicker";
+import { SubjectFramingPicker } from "@/components/SubjectFramingPicker";
 import { WizardErrorBanner } from "@/components/studio/WizardErrorBanner";
+import { VideoOutputSourceCard } from "@/components/studio/VideoOutputSourceCard";
 import { JobProgressBar } from "@/components/studio/JobProgressBar";
 import { QuickFixImagePanel } from "@/components/studio/QuickFixImagePanel";
 import { isBrandVideoStyle, isCreativeVideoStyle, isBrandVisualStyle, isStoryboardVideoStyle, isAiPlannedVideoStyle } from "@/lib/visual-styles";
+import { CINEMATIC_SCENE_COUNTS, type CinematicSceneCount } from "@/lib/cinematic-scene-config";
 
 export function ImageStep() {
-  const { applyPromptRebuild, campaignPlan, campaignSlideLabel, campaignSlides, campaignTheme, canGenerateImage, effectiveImageMode, effectiveImageOutputMode, error, finishImageStep, generateImage, goBackFromImage, headline, imageAspectRatio, imageBusy, imageCreativeMode, imageFinishLabel, imageGenKey, imageInputMode, imageNextDisabled, imagePreflight, imageProgressInfo, imagePrompt, imageRefPhoto, imageRefPreviewUrl, imageStepHint, imageUrl, imageVariantUrls, isCampaignOutput, isStoryboardOutput, lastImageEndpoint, lockedCampaignMode, m, needsProductUpload, onImageCreativeModeChange, onImageInputModeChange, onProductPhotoSelected, product, productPhoto, promotionMode, promptExtra, promptMarket, regenerateStoryboardSceneWithAi, reorderStoryboardScene, replaceStoryboardSceneImage, selectVisualStyle, selectedVariantIndex, setCampaignPlan, setCampaignSlides, setCampaignTheme, setImageAspectRatio, setImageGenKey, setImageOutputMode, setImagePrompt, setImageRefPhoto, setImageUrl, setImageVariantUrls, setPromptExtra, setPromptMarket, setSelectedVariantIndex, setShowAdvancedImage, setSubjectFraming, setVideoPrompt, showAdvancedImage, storyboardPlan, storyboardSceneRegenerateBusy, storyboardSceneReplaceBusy, storyboardScenes, storyboardTrimDuration, subjectFraming, templateId, templateSlotStatus, trimStoryboardDurations, uploadPreviewUrl, uploadQualityMessage, uploadQualityWarning, useOriginalAsKeyframe, useOriginalImage, usesCompositor, videoPrompt, visualStyle, visualStyleId, workflowMode } = useWizard();
+  const { applyPromptRebuild, campaignPlan, campaignSlideLabel, campaignSlides, campaignTheme, canGenerateImage, cinematicReelPlan, cinematicSceneCount, cinematicScenes, effectiveImageMode, effectiveImageOutputMode, error, finishImageStep, formatCinematicCopy, generateImage, goBackFromImage, headline, imageAspectRatio, imageBusy, imageCreativeMode, imageFinishLabel, imageGenKey, imageGenerateDisabledReason, imageInputMode, imageNextDisabled, imagePreflight, imageProgressInfo, imagePrompt, imageRefPhoto, imageRefPreviewUrl, imageStepHint, imageUrl, imageVariantUrls, isCampaignOutput, isCinematicStitchOutput, isConceptCinematicSingleOutput, isStoryboardOutput, lastImageEndpoint, lockedCampaignMode, m, needsProductUpload, onCinematicSceneCountChange, onImageCreativeModeChange, onImageInputModeChange, onProductPhotoSelected, product, productPhoto, promotionMode, promptExtra, promptMarket, referenceAnalyzeBusy, referenceAnalyzeNote, referenceStrategy, regenerateStoryboardSceneWithAi, reorderStoryboardScene, replaceStoryboardSceneImage, selectVisualStyle, selectedVariantIndex, setCampaignPlan, setCampaignSlides, setCampaignTheme, setImageAspectRatio, setImageGenKey, setImageOutputMode, setImagePrompt, setImageRefPhoto, setImageUrl, setImageVariantUrls, setPromptExtra, setPromptMarket, setSelectedVariantIndex, setShowAdvancedImage, setStoryboardSceneCount, setSubjectFraming, setVideoPrompt, showAdvancedImage, storyboardPlan, storyboardSceneCount, storyboardSceneRegenerateBusy, storyboardSceneReplaceBusy, storyboardScenes, storyboardTrimDuration, subjectFraming, templateId, templateSlotStatus, trimStoryboardDurations, uploadPreviewUrl, uploadQualityMessage, uploadQualityWarning, useOriginalAsKeyframe, useOriginalImage, userReferenceBrief, usesCompositor, videoPrompt, visualStyle, visualStyleId, workflowMode } = useWizard();
   const isConcept = promotionMode === "concept";
+  const isConceptSocialImage =
+    isConcept &&
+    workflowMode === "image-only" &&
+    !isConceptCinematicSingleOutput &&
+    !isCinematicStitchOutput;
+  const showFramingPicker = isConcept && workflowMode === "image-only";
   const showProductUpload = usesCompositor || needsProductUpload;
   return (
 <section className="space-y-5 rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-xl shadow-slate-900/40 backdrop-blur">
@@ -30,9 +42,19 @@ export function ImageStep() {
     </p>
   </div>
 
-  <TemplateSlotChecklist templateId={templateId} filled={templateSlotStatus()} />
+  {workflowMode !== "image-only" && <VideoOutputSourceCard variant="image" />}
 
-  {!usesCompositor && !isStoryboardOutput ? (
+  <TemplateSlotChecklist
+    templateId={templateId}
+    filled={templateSlotStatus()}
+    optionalSlotIds={
+      isCinematicStitchOutput || isConceptCinematicSingleOutput
+        ? ["productPhoto", "product", "business", "referenceVideo", "headline", "subline", "offer"]
+        : undefined
+    }
+  />
+
+  {!usesCompositor && !isStoryboardOutput && !isCinematicStitchOutput && !isConceptCinematicSingleOutput ? (
     <ImageCreativeModePicker
       value={imageCreativeMode}
       onChange={onImageCreativeModeChange}
@@ -57,14 +79,33 @@ export function ImageStep() {
   ) : null}
 
   {!usesCompositor && imageCreativeMode === "reference-concept" && (
-    <UploadZone
-      label={m.wizard.imageRefConceptLabel}
-      hint={m.wizard.imageRefConceptHint}
-      cta={m.wizard.imageRefCta}
-      changeLabel={m.wizard.imageRefChange}
-      previewUrl={imageRefPreviewUrl}
-      fileName={imageRefPhoto?.name ?? null}
-      onFile={setImageRefPhoto}
+    <>
+      <div data-coach-id="coach-style-reference">
+      <UploadZone
+        label={m.wizard.imageRefConceptLabel}
+        hint={m.wizard.imageRefConceptHint}
+        cta={m.wizard.imageRefCta}
+        changeLabel={m.wizard.imageRefChange}
+        previewUrl={imageRefPreviewUrl}
+        fileName={imageRefPhoto?.name ?? null}
+        onFile={setImageRefPhoto}
+      />
+      </div>
+      {isConcept && imageRefPhoto && !productPhoto && (
+        <p className="rounded-lg border border-cyan-800/50 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-100/90">
+          {m.wizard.referenceConceptStyleOnlyHint}
+        </p>
+      )}
+    </>
+  )}
+
+  {(imageRefPhoto || referenceAnalyzeBusy) && (
+    <ReferenceBriefPanel
+      m={m}
+      brief={userReferenceBrief}
+      strategy={referenceStrategy}
+      busy={referenceAnalyzeBusy}
+      note={referenceAnalyzeNote}
     />
   )}
 
@@ -103,7 +144,7 @@ export function ImageStep() {
   )}
 
   {showProductUpload && (
-    <>
+    <div data-coach-id="coach-product-photo">
       <UploadZone
         label={isConcept ? m.wizard.uploadLabelConcept : m.wizard.uploadLabel}
         hint={isConcept ? m.wizard.uploadHintConcept : m.wizard.uploadHint}
@@ -115,7 +156,7 @@ export function ImageStep() {
       />
       {!usesCompositor && imageCreativeMode === "reference-concept" && imageRefPhoto && (
         <p className="rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100/90">
-          {m.wizard.imageRefConceptActiveHint}
+          {isCampaignOutput ? m.wizard.imagePreflightCampaignReference : m.wizard.imageRefConceptActiveHint}
         </p>
       )}
       {!usesCompositor &&
@@ -130,7 +171,7 @@ export function ImageStep() {
           {uploadQualityMessage(uploadQualityWarning)}
         </p>
       )}
-    </>
+    </div>
   )}
 
 
@@ -140,7 +181,9 @@ export function ImageStep() {
       open={showAdvancedImage}
       onToggle={(e) => setShowAdvancedImage((e.target as HTMLDetailsElement).open)}
     >
-      <summary className="cursor-pointer text-sm text-slate-400">{m.wizard.imagePromptLabel}</summary>
+      <summary className="cursor-pointer text-sm text-slate-400">
+        {isConcept ? m.wizard.imageAdvancedLabel : m.wizard.imagePromptLabel}
+      </summary>
       <AdvancedPromptPanel
         section="image"
         market={promptMarket}
@@ -158,6 +201,14 @@ export function ImageStep() {
     </details>
   )}
 
+  {showFramingPicker && (
+    <SubjectFramingPicker
+      value={subjectFraming}
+      onChange={setSubjectFraming}
+      variant="dark"
+    />
+  )}
+
   {!usesCompositor && !isStoryboardOutput && (
     <ImageAspectRatioPicker
       value={imageAspectRatio}
@@ -171,7 +222,54 @@ export function ImageStep() {
     />
   )}
 
-  {!usesCompositor && !isStoryboardOutput && effectiveImageMode !== "describe" && (
+  {isConceptCinematicSingleOutput && (
+    <div className="rounded-2xl border border-fuchsia-800/50 bg-fuchsia-950/25 p-4">
+      <p className="text-sm font-semibold text-fuchsia-100">{m.wizard.conceptCinematicSingleOutputTitle}</p>
+      <p className="mt-1 text-xs text-fuchsia-200/90">{m.wizard.conceptCinematicSingleOutputDesc}</p>
+      <p className="mt-2 text-xs text-amber-200/90">{m.wizard.conceptCinematicSingleNoPosterHint}</p>
+    </div>
+  )}
+
+  {isConceptSocialImage && (
+    <div className="rounded-2xl border border-cyan-800/50 bg-cyan-950/25 p-4 space-y-2">
+      <p className="text-xs text-cyan-200/90">{m.wizard.conceptSocialImageHint}</p>
+      {(effectiveImageOutputMode === "teaching-carousel" || effectiveImageOutputMode === "campaign") && (
+        <p className="text-xs text-cyan-200/80">{m.wizard.conceptCarouselModeHint}</p>
+      )}
+      <p className="text-xs text-slate-400">{m.wizard.conceptNoStyleMemoryHint}</p>
+    </div>
+  )}
+
+  {isCinematicStitchOutput && (
+    <div className="rounded-2xl border border-fuchsia-800/50 bg-fuchsia-950/25 p-4">
+      <p className="text-sm font-semibold text-fuchsia-100">
+        {formatCinematicCopy(m.wizard.cinematicStitchOutputTitle)}
+      </p>
+      <p className="mt-1 text-xs text-fuchsia-200/90">{m.wizard.cinematicStitchOutputDesc}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-xs text-fuchsia-200">
+          {m.wizard.cinematicSceneCountLabel}
+          <select
+            value={cinematicSceneCount}
+            onChange={(e) =>
+              onCinematicSceneCountChange(Number(e.target.value) as CinematicSceneCount)
+            }
+            className="rounded-lg border border-fuchsia-700 bg-slate-900 px-2 py-1 text-xs text-fuchsia-100"
+          >
+            {CINEMATIC_SCENE_COUNTS.filter((n) => n > 1).map((n) => (
+              <option key={n} value={n}>
+                {formatCinematicCopy(m.wizard.cinematicSceneCountOption, n)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-2 text-[10px] text-fuchsia-200/80">{m.wizard.cinematicSceneCountHint}</p>
+    </div>
+  )}
+
+  {!usesCompositor && !isStoryboardOutput && !isCinematicStitchOutput && !isConceptCinematicSingleOutput && effectiveImageMode !== "describe" && (
+    <div data-coach-id="coach-image-output-mode">
     <ImageOutputModePicker
       value={effectiveImageOutputMode}
       includeTeachingCarousel={isConcept}
@@ -184,6 +282,7 @@ export function ImageStep() {
       }}
       lockedCampaign={lockedCampaignMode}
     />
+    </div>
   )}
 
   {!usesCompositor && isCampaignOutput && (
@@ -200,18 +299,67 @@ export function ImageStep() {
     </>
   )}
 
+  {isStoryboardOutput && (
+    <div className="rounded-2xl border border-teal-800/50 bg-teal-950/20 p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-xs text-teal-200">
+          {m.wizard.storyboardTrimDurationLabel}
+          <select
+            value={storyboardTrimDuration}
+            onChange={(e) =>
+              trimStoryboardDurations(e.target.value as StoryboardDurationPreset)
+            }
+            className="rounded-lg border border-teal-700 bg-slate-900 px-2 py-1 text-xs text-teal-100"
+          >
+            <option value="4">4s</option>
+            <option value="6">6s</option>
+            <option value="8">8s</option>
+            <option value="10">10s</option>
+            <option value="12">12s</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-teal-200">
+          {m.wizard.storyboardSceneCountLabel}
+          <select
+            value={storyboardSceneCount}
+            onChange={(e) =>
+              setStoryboardSceneCount(e.target.value as StoryboardSceneCount)
+            }
+            className="rounded-lg border border-teal-700 bg-slate-900 px-2 py-1 text-xs text-teal-100"
+          >
+            {STORYBOARD_SCENE_COUNTS.map((n) => (
+              <option key={n} value={n}>
+                {n === "auto" ? m.wizard.storyboardSceneCountAuto : n}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-2 text-[10px] text-teal-200/80">{m.wizard.storyboardSceneCountHint}</p>
+    </div>
+  )}
+
   {error && <WizardErrorBanner message={error} variant="dark" />}
 
   <div className="flex flex-wrap gap-2">
+    {imageGenerateDisabledReason && !imageBusy && !canGenerateImage() && (
+      <p className="w-full text-xs text-amber-200/90">{imageGenerateDisabledReason}</p>
+    )}
     <button
       type="button"
+      data-coach-id="coach-generate-image"
       disabled={imageBusy || !canGenerateImage()}
+      title={imageGenerateDisabledReason ?? undefined}
       onClick={generateImage}
       className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
     >
       {imageBusy
         ? isStoryboardOutput
           ? m.wizard.storyboardGenerating
+          : isCinematicStitchOutput
+            ? m.wizard.cinematicStitchGenerating
+          : isConceptCinematicSingleOutput
+            ? m.wizard.conceptCinematicSingleGenerating
           : isCampaignOutput
           ? m.wizard.campaignGenerating
           : m.wizard.imageGenerating
@@ -221,7 +369,11 @@ export function ImageStep() {
             : m.wizard.regenerateImageBtn
           : usesCompositor
             ? m.wizard.compositorImageBtn
-            : m.wizard.generateImageBtn}
+            : isCinematicStitchOutput
+              ? formatCinematicCopy(m.wizard.cinematicStitchGenerateBtn)
+              : isConceptCinematicSingleOutput
+                ? m.wizard.conceptCinematicSingleGenerateBtn
+              : m.wizard.generateImageBtn}
     </button>
     {needsProductUpload &&
       productPhoto &&
@@ -270,27 +422,7 @@ export function ImageStep() {
 
   {storyboardScenes.length > 0 && (
     <div className="rounded-2xl border border-teal-700/50 bg-teal-950/25 p-4">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-teal-200">
-          {m.wizard.storyboardTrimDurationLabel}
-        </span>
-        <select
-          value={storyboardTrimDuration}
-          onChange={(e) =>
-            trimStoryboardDurations(e.target.value as StoryboardDurationPreset)
-          }
-          className="rounded-lg border border-teal-700 bg-slate-900 px-2 py-1 text-xs text-teal-100"
-        >
-          <option value="4">4s</option>
-          <option value="6">6s</option>
-          <option value="8">8s</option>
-          <option value="10">10s</option>
-          <option value="12">12s</option>
-        </select>
-        <span className="text-[10px] text-teal-200/80">
-          {m.wizard.storyboardEditorHint}
-        </span>
-      </div>
+      <p className="mb-2 text-[10px] text-teal-200/80">{m.wizard.storyboardEditorHint}</p>
       {storyboardPlan?.theme && (
         <p className="mb-2 text-xs text-teal-100/80">
           <span className="font-medium text-teal-200">{m.wizard.storyboardPlanLabel}:</span>{" "}
@@ -320,12 +452,12 @@ export function ImageStep() {
             <span className="mt-1 block text-center text-[10px] text-slate-400 line-clamp-2">
               {scene.sceneDescriptionZh || scene.role}
             </span>
-            <div className="mt-2 flex flex-wrap justify-center gap-1">
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
               <button
                 type="button"
                 disabled={i === 0}
                 onClick={() => reorderStoryboardScene(i, i - 1)}
-                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-slate-200 disabled:opacity-40"
+                className="min-h-10 rounded-md border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40"
               >
                 {m.wizard.storyboardMoveUpBtn}
               </button>
@@ -333,11 +465,11 @@ export function ImageStep() {
                 type="button"
                 disabled={i === storyboardScenes.length - 1}
                 onClick={() => reorderStoryboardScene(i, i + 1)}
-                className="rounded-md border border-slate-600 px-2 py-1 text-[10px] text-slate-200 disabled:opacity-40"
+                className="min-h-10 rounded-md border border-slate-600 px-3 py-2 text-xs text-slate-200 disabled:opacity-40"
               >
                 {m.wizard.storyboardMoveDownBtn}
               </button>
-              <label className="cursor-pointer rounded-md border border-slate-600 px-2 py-1 text-[10px] text-slate-200">
+              <label className="flex min-h-10 cursor-pointer items-center rounded-md border border-slate-600 px-3 py-2 text-xs text-slate-200">
                 {storyboardSceneReplaceBusy === i
                   ? m.wizard.storyboardReplacingImage
                   : m.wizard.storyboardReplaceImageBtn}
@@ -354,7 +486,7 @@ export function ImageStep() {
                 type="button"
                 disabled={storyboardSceneRegenerateBusy !== null}
                 onClick={() => regenerateStoryboardSceneWithAi(i)}
-                className="rounded-md border border-amber-500/70 bg-amber-950/30 px-2 py-1 text-[10px] text-amber-200 disabled:opacity-40"
+                className="min-h-10 rounded-md border border-amber-500/70 bg-amber-950/30 px-3 py-2 text-xs text-amber-200 disabled:opacity-40"
               >
                 {storyboardSceneRegenerateBusy === i
                   ? m.wizard.storyboardRegeneratingImage
@@ -371,6 +503,39 @@ export function ImageStep() {
       {lastImageEndpoint && (
         <p className="mt-2 text-[10px] text-slate-500">{lastImageEndpoint}</p>
       )}
+    </div>
+  )}
+
+  {cinematicScenes.length > 0 && (
+    <div className="rounded-2xl border border-fuchsia-700/50 bg-fuchsia-950/25 p-4">
+      {cinematicReelPlan?.theme && (
+        <p className="mb-2 text-xs text-fuchsia-100/80">
+          <span className="font-medium text-fuchsia-200">{m.wizard.cinematicReelPlanLabel}:</span>{" "}
+          {cinematicReelPlan.theme}
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-3">
+        {cinematicScenes.map((scene) => (
+          <div
+            key={`${scene.imageUrl}-${scene.sceneIndex}`}
+            className="rounded-xl border border-slate-700 bg-slate-900/40 p-2"
+          >
+            <img
+              src={scene.imageUrl}
+              alt=""
+              className="mx-auto max-h-48 w-full rounded-lg object-contain"
+            />
+            <span className="mt-2 block text-center text-xs font-medium text-slate-200">
+              {m.wizard.storyboardSceneLabel} {scene.sceneIndex}
+              {` · ${scene.startSec}–${scene.endSec}s`}
+            </span>
+            <span className="mt-1 block text-center text-[10px] text-slate-400 line-clamp-2">
+              {scene.sceneDescriptionZh || scene.role}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-fuchsia-200/80">{formatCinematicCopy(m.wizard.cinematicStitchImageHint)}</p>
     </div>
   )}
 
@@ -426,6 +591,7 @@ export function ImageStep() {
   {imageUrl &&
     !useOriginalImage &&
     !isStoryboardOutput &&
+    !isCinematicStitchOutput &&
     campaignSlides.length <= 1 &&
     imageVariantUrls.length > 1 && (
     <div className="rounded-2xl border border-emerald-700/50 bg-emerald-950/25 p-4">
@@ -511,6 +677,7 @@ export function ImageStep() {
     </button>
     <button
       type="button"
+      data-coach-id="coach-continue-image"
       disabled={imageNextDisabled}
       onClick={finishImageStep}
       className="flex-1 rounded-xl bg-linear-to-r from-cyan-500 to-emerald-500 py-2.5 text-sm font-semibold text-white shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:opacity-40"

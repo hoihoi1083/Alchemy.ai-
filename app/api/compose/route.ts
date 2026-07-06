@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 import { bgmFilePath, DEFAULT_BGM_TRACK, type BgmTrackId } from "@/lib/bgm/tracks";
 import { getCompositorId } from "@/lib/compositor";
 import {
@@ -34,6 +35,9 @@ function pipelineFileUrl(jobId: string, file: string): string {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   let formData: FormData;
   try {
     formData = await request.formData();

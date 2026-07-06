@@ -4,17 +4,34 @@ import { useState } from "react";
 import { useWizard } from "@/components/studio/WizardContext";
 import { WorkflowModePicker } from "@/components/WorkflowModePicker";
 import { VisualStylePicker } from "@/components/VisualStylePicker";
+import { ArtStylePicker } from "@/components/ArtStylePicker";
 import { TemplateSlotChecklist } from "@/components/TemplateSlotChecklist";
 import { AdvancedPromptPanel } from "@/components/AdvancedPromptPanel";
 import { isSlotRequired, templateHasSlot } from "@/lib/template-slots";
 import { VIDEO_DURATIONS, type VideoDuration } from "@/lib/video-settings";
 import { isBrandVideoStyle, isCreativeVideoStyle, isBrandVisualStyle, isStoryboardVideoStyle, isAiPlannedVideoStyle, visualStylePromptHint } from "@/lib/visual-styles";
 import { UploadZone } from "@/components/UploadZone";
+import { ReferenceUploadZone } from "@/components/ReferenceUploadZone";
+import { ContentResearchPanel } from "@/components/content-research/ContentResearchPanel";
+import { CINEMATIC_SCENE_COUNTS, type CinematicSceneCount } from "@/lib/cinematic-scene-config";
+import type { UserReferenceBrief } from "@/lib/user-reference-brief";
+import { WizardErrorBanner } from "@/components/studio/WizardErrorBanner";
+import { VideoOutputSourceCard } from "@/components/studio/VideoOutputSourceCard";
+import { isContentResearchStyleExtra } from "@/lib/content-research-promote";
 
 export function SetupStep() {
-  const { advancedSection, analyzeBrand, applyPrimaryPath, applyPrimaryPathConcept, applyPrimaryPathConceptVideo, applyPrimaryPathVideoOnly, applyPromptRebuild, brandAnalyzeBusy, brandAnalyzeNote, brandSocialHint, brandWebsiteUrl, business, conceptIdea, continueSetupLabel, creativeVideoBrief, goNextFromSetup, headline, imagePrompt, lockedCampaignMode, m, offer, onProductPhotoSelected, onWorkflowModeChange, planAiVideoPrompt, product, productPhoto, promotionMode, promptExtra, promptMarket, selectVisualStyle, setBrandSocialHint, setBrandWebsiteUrl, setBusiness, setConceptIdea, setConceptImageVisionNote, setCreativeVideoBrief, setError, setHeadline, setImagePrompt, setOffer, setProduct, setPromptExtra, setPromptMarket, setShowAdvancedSetup, setShowAdvancedSetupPrompts, setStoryboardBrief, setSubjectFraming, setSubline, setUseOriginalImage, setVideoPrompt, setVideoSettings, showAdvancedSetup, showAdvancedSetupPrompts, storyboardBrief, subjectFraming, subline, templateId, templateSlotStatus, uploadPreviewUrl, usesCompositor, usesReferenceConceptForImage, videoCreativeMode, videoPrompt, videoSettings, visualStyleId, workflowMode } = useWizard();
+  const { advancedSection, analyzeBrand, applyClosestMatchRecipe, applyCinematicStitchRecipe, applyPrimaryPath, applyPrimaryPathConcept, applyPrimaryPathConceptVideo, applyPrimaryPathVideoOnly, applyPromptRebuild, applyQuickTest8sRecipe, artStyleId, brandAnalyzeBusy, brandAnalyzeNote, brandSocialHint, brandWebsiteUrl, business, cinematicSceneCount, conceptIdea, continueSetupLabel, setupNextDisabled, setupNextDisabledReason, creativeVideoBrief, error, formatCinematicCopy, goNextFromSetup, headline, imageCreativeMode, imagePrompt, isContentResearchVideoPath, lockedCampaignMode, m, offer, onCinematicSceneCountChange, onImageInputModeChange, onProductPhotoSelected, onImageCreativeModeChange, onReferenceAdFile, onVideoCreativeModeChange, onWorkflowModeChange, planAiVideoPrompt, product, productPhoto, promotionMode, promptExtra, promptMarket, referenceAd, referenceIsVideo, referencePreviewUrl, researchReelAnalysis, researchReelAnalyzeBusy, researchReelAnalyzeNote, selectVisualStyle, setArtStyleId, setBrandSocialHint, setBrandWebsiteUrl, setBusiness, setCampaignTheme, setConceptIdea, setConceptImageVisionNote, setCreativeVideoBrief, setError, setExtraKitPhotos, setHeadline, setImageAspectRatio, setImageCreativeMode, setImageOutputMode, setImagePrompt, setImageRefPhoto, setOffer, setProduct, setPromptExtra, setPromptMarket, setReferenceCarouselSlideCount, setContentResearchApplyRef, setShowAdvancedSetup, setShowAdvancedSetupPrompts, setStoryboardBrief, setSubjectFraming, setSubline, setUserReferenceBrief, setUseOriginalImage, setVideoPrompt, setVideoSettings, showAdvancedSetup, showAdvancedSetupPrompts, storyboardBrief, subjectFraming, subline, templateId, templateSlotStatus, uploadPreviewUrl, usesCompositor, usesReferenceConceptForImage, videoCreativeMode, videoPrompt, videoSettings, visualStyleId, workflowMode } = useWizard();
   const isConcept = promotionMode === "concept";
+  const isConceptImageOnly = isConcept && workflowMode === "image-only";
   const isConceptVideoOnly = isConcept && workflowMode === "video-only";
+  const hidePrimaryPathsForResearch =
+    isContentResearchStyleExtra(promptExtra) &&
+    (workflowMode === "image-only" || workflowMode === "video-only");
+  const hidePrimaryPaths =
+    isConceptImageOnly ||
+    isConceptVideoOnly ||
+    (hidePrimaryPathsForResearch && !isConcept);
+  const showResearchPathsHint = hidePrimaryPathsForResearch && !isConcept;
   const isVideoOnlyPhysical = !isConcept && workflowMode === "video-only";
   const pathsTitle = isConceptVideoOnly
     ? m.wizard.conceptVideoPathsTitle
@@ -39,6 +56,12 @@ export function SetupStep() {
   const [conceptVisualMetaphor, setConceptVisualMetaphor] = useState("");
   const [conceptPlanBusy, setConceptPlanBusy] = useState(false);
   const [conceptPlanNote, setConceptPlanNote] = useState<string | null>(null);
+  const [contentResearchNote, setContentResearchNote] = useState<string | null>(null);
+  const [contentResearchOpen, setContentResearchOpen] = useState(true);
+  const [recipeApplyNote, setRecipeApplyNote] = useState<string | null>(null);
+  const defaultResearchTopic = isConcept
+    ? conceptIdea.trim() || business.trim() || ""
+    : business.trim() || "";
   function applyConceptWizard(
     draft?: {
       audience?: string;
@@ -92,7 +115,7 @@ export function SetupStep() {
     setError(null);
     try {
       let res: Response;
-      if (productPhoto && (workflowMode === "video-only" || workflowMode === "combined")) {
+      if (productPhoto) {
         const fd = new FormData();
         fd.set("product", product.trim());
         fd.set("business", business.trim());
@@ -142,6 +165,8 @@ export function SetupStep() {
       setConceptVisualMetaphor(String(draft.visualMetaphor ?? "").trim());
       const imageVisionNote = String(data.imageVisionNote ?? "").trim();
       if (imageVisionNote) setConceptImageVisionNote(imageVisionNote);
+      const referenceBrief = data.referenceBrief as UserReferenceBrief | undefined;
+      if (referenceBrief) setUserReferenceBrief(referenceBrief);
       if (productPhoto && (workflowMode === "video-only" || workflowMode === "combined")) {
         setUseOriginalImage(true);
       }
@@ -170,6 +195,16 @@ export function SetupStep() {
       setConceptPlanBusy(false);
     }
   }
+  function handleApplyClosestMatchRecipe() {
+    applyClosestMatchRecipe();
+    setRecipeApplyNote(m.wizard.closestMatchRecipeApplied);
+    window.setTimeout(() => setRecipeApplyNote(null), 1800);
+  }
+  function handleApplyQuickTest8sRecipe() {
+    applyQuickTest8sRecipe();
+    setRecipeApplyNote(m.wizard.quickTest8sRecipeApplied);
+    window.setTimeout(() => setRecipeApplyNote(null), 1800);
+  }
   return (
 <section className="space-y-5 rounded-3xl border border-cyan-100/70 bg-white/90 p-5 shadow-sm backdrop-blur">
   <div className="h-1 w-full rounded-full bg-linear-to-r from-cyan-400 via-indigo-400 to-emerald-400 opacity-80" />
@@ -182,11 +217,179 @@ export function SetupStep() {
 
   <WorkflowModePicker value={workflowMode} onChange={onWorkflowModeChange} />
 
+  {workflowMode !== "image-only" && <VideoOutputSourceCard variant="setup" />}
+
+  <details
+    open={contentResearchOpen}
+    onToggle={(e) => setContentResearchOpen(e.currentTarget.open)}
+    className="rounded-xl border border-slate-200 bg-slate-50/80 p-3"
+  >
+    <summary className="cursor-pointer text-sm font-medium text-slate-800">
+      {m.wizard.contentResearchSectionTitle}
+    </summary>
+    <p className="mt-1 text-xs text-slate-600">{m.wizard.contentResearchSectionHint}</p>
+    <div className="mt-3">
+  <ContentResearchPanel
+    defaultTopic={defaultResearchTopic}
+    promoteProduct={product}
+    onPromoteProductChange={setProduct}
+    syncTopicFromProduct={false}
+    promotionMode={promotionMode}
+    market={promptMarket}
+    workflowMode={workflowMode}
+    wizard={{
+      setHeadline,
+      setSubline,
+      setOffer,
+      setConceptIdea,
+      setProduct,
+      setPromptExtra,
+      setImageOutputMode,
+      setImageAspectRatio,
+      setCampaignTheme,
+      selectVisualStyle,
+      onWorkflowModeChange,
+      setImageRefPhoto,
+      setImageCreativeMode,
+      onImageInputModeChange,
+      setExtraKitPhotos,
+      setReferenceCarouselSlideCount,
+      setContentResearchApplyRef,
+      setCinematicSceneCount: onCinematicSceneCountChange,
+      onVideoCreativeModeChange,
+      onReferenceAdFile,
+      setError,
+    }}
+    onApplied={() => {
+      setContentResearchNote(m.studioAssistant.actionApplied);
+      setConceptAudience("");
+      setConceptPain("");
+      setConceptPromise("");
+      setConceptProof("");
+      setConceptCta("");
+      setConceptVisualMetaphor("");
+      setConceptPlanNote(null);
+    }}
+  />
+    </div>
+  </details>
+  {contentResearchNote && (
+    <p className="text-xs text-emerald-800">{contentResearchNote}</p>
+  )}
+
+  {isContentResearchVideoPath && (
+    <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-xs text-violet-950">
+      <div>
+        <p className="font-semibold text-violet-900">
+          {isConcept ? m.wizard.researchReelSetupTitleConcept : m.wizard.researchReelSetupTitle}
+        </p>
+        <p className="mt-1 leading-relaxed text-violet-800">
+          {isConcept ? m.wizard.researchReelSetupIntroConcept : m.wizard.researchReelSetupIntro}
+        </p>
+      </div>
+      <ul className="space-y-1.5">
+        <li className="flex items-start gap-2">
+          <span aria-hidden>{isContentResearchStyleExtra(promptExtra) ? "✓" : "○"}</span>
+          <span>{m.wizard.researchReelStatusPost}</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span aria-hidden>{referenceAd && referenceIsVideo ? "✓" : "○"}</span>
+          <span>
+            {referenceAd && referenceIsVideo
+              ? m.wizard.researchReelStatusMp4
+              : m.wizard.researchReelMp4Missing}
+          </span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span aria-hidden>
+            {researchReelAnalyzeBusy ? "…" : researchReelAnalysis || videoPrompt.trim() ? "✓" : "○"}
+          </span>
+          <span>
+            {researchReelAnalyzeBusy
+              ? m.wizard.researchReelAnalyzing
+              : researchReelAnalyzeNote || researchReelAnalysis?.productionNotesZh || "—"}
+          </span>
+        </li>
+        {isConcept ? (
+          <li className="flex items-start gap-2">
+            <span aria-hidden>{headline.trim() || conceptIdea.trim() ? "✓" : "○"}</span>
+            <span>
+              {headline.trim() || conceptIdea.trim()
+                ? m.wizard.researchReelStatusConceptCopy
+                : m.wizard.researchReelStatusConceptCopyMissing}
+            </span>
+          </li>
+        ) : (
+          <li className="flex items-start gap-2">
+            <span aria-hidden>{productPhoto ? "✓" : "○"}</span>
+            <span>
+              {productPhoto
+                ? m.wizard.researchReelStatusProductPhoto
+                : m.wizard.researchReelStatusProductPhotoOptional}
+            </span>
+          </li>
+        )}
+      </ul>
+      <div className={`grid gap-3 ${isConcept ? "" : "sm:grid-cols-2"}`}>
+        {!isConcept && (
+        <div
+          className="rounded-xl border border-violet-200 bg-white/90 p-3"
+          data-coach-id="coach-product-photo"
+        >
+          <UploadZone
+            label={m.wizard.uploadLabel}
+            hint={m.wizard.researchReelUploadProductHint}
+            cta={m.wizard.uploadCta}
+            changeLabel={m.wizard.uploadChange}
+            previewUrl={uploadPreviewUrl}
+            fileName={productPhoto?.name ?? null}
+            onFile={onProductPhotoSelected}
+          />
+        </div>
+        )}
+        {(!referenceAd || !referenceIsVideo) && (
+          <div className="rounded-xl border border-violet-200 bg-white/90 p-3">
+            <ReferenceUploadZone
+              label={m.wizard.referenceLabel}
+              hint={m.wizard.researchReelUploadMp4Hint}
+              cta={m.wizard.referenceCta}
+              changeLabel={m.wizard.referenceChange}
+              previewUrl={referencePreviewUrl}
+              isVideo={referenceIsVideo}
+              fileName={referenceAd?.name ?? null}
+              onFile={(file) => {
+                if (file) onVideoCreativeModeChange("reference-concept");
+                onReferenceAdFile(file);
+              }}
+            />
+          </div>
+        )}
+      </div>
+      {referencePreviewUrl && referenceIsVideo ? (
+        <video
+          src={referencePreviewUrl}
+          className="max-h-40 w-full rounded-lg border border-violet-200 object-contain"
+          muted
+          playsInline
+          controls
+        />
+      ) : null}
+    </div>
+  )}
+
+  {hidePrimaryPaths ? (
+    showResearchPathsHint ? (
+      <p className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-xs text-emerald-900">
+        {m.wizard.primaryPathsHiddenResearchHint}
+      </p>
+    ) : null
+  ) : (
   <div className="rounded-2xl border border-cyan-200 bg-linear-to-br from-cyan-50 via-white to-indigo-50 p-4">
     <p className="text-sm font-semibold text-slate-900">{pathsTitle}</p>
     <p className="mt-1 text-xs text-slate-600">{pathsHint}</p>
     {isConceptVideoOnly ? (
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => applyPrimaryPathConceptVideo("creative")}
@@ -219,7 +422,8 @@ export function SetupStep() {
             {m.wizard.visualStyles["brand-video"].description}
           </p>
         </button>
-      </div>
+        </div>
+      </>
     ) : isConcept ? (
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
@@ -336,18 +540,30 @@ export function SetupStep() {
         </button>
       </div>
     ) : (
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2" data-coach-id="coach-visual-style-paths">
         <button
           type="button"
           onClick={() => applyPrimaryPath("quick")}
           className={`rounded-xl border px-3 py-3 text-left ${
-            visualStyleId === "product"
+            visualStyleId === "product" && imageCreativeMode !== "reference-concept"
               ? "border-emerald-400 bg-emerald-50"
               : "border-slate-200 bg-white"
           }`}
         >
           <p className="text-sm font-semibold text-slate-900">{m.wizard.pathQuickTitle}</p>
           <p className="mt-1 text-xs text-slate-600">{m.wizard.pathQuickDesc}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyPrimaryPath("reference")}
+          className={`rounded-xl border px-3 py-3 text-left ${
+            imageCreativeMode === "reference-concept"
+              ? "border-indigo-400 bg-indigo-50"
+              : "border-slate-200 bg-white"
+          }`}
+        >
+          <p className="text-sm font-semibold text-slate-900">{m.wizard.pathReferenceTitle}</p>
+          <p className="mt-1 text-xs text-slate-600">{m.wizard.pathReferenceDesc}</p>
         </button>
         <button
           type="button"
@@ -361,6 +577,7 @@ export function SetupStep() {
           <p className="text-sm font-semibold text-slate-900">{m.wizard.pathModelTitle}</p>
           <p className="mt-1 text-xs text-slate-600">{m.wizard.pathModelDesc}</p>
         </button>
+        {workflowMode !== "image-only" && (
         <button
           type="button"
           onClick={() => applyPrimaryPath("storyboard")}
@@ -373,6 +590,90 @@ export function SetupStep() {
           <p className="text-sm font-semibold text-slate-900">{m.wizard.pathStoryboardTitle}</p>
           <p className="mt-1 text-xs text-slate-600">{m.wizard.pathStoryboardDesc}</p>
         </button>
+        )}
+      </div>
+    )}
+    {isConcept && (
+      <div className="mt-3 rounded-xl border border-fuchsia-200 bg-fuchsia-50/70 p-3">
+        <p className="text-xs font-semibold text-fuchsia-900">{m.wizard.conceptCinematicPathsTitle}</p>
+        <p className="mt-1 text-xs text-fuchsia-800">{m.wizard.conceptCinematicPathsHint}</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => applyPrimaryPathConceptVideo("cinematic")}
+            className={`rounded-lg border px-3 py-2 text-left text-xs ${
+              visualStyleId === "concept-cinematic" && cinematicSceneCount === 1
+                ? "border-fuchsia-400 bg-white"
+                : "border-fuchsia-200 bg-white/90"
+            }`}
+          >
+            <p className="font-semibold text-fuchsia-950">{m.wizard.conceptCinematicSingleTitle}</p>
+            <p className="mt-0.5 text-fuchsia-800">{m.wizard.conceptCinematicSingleDesc}</p>
+          </button>
+          <button
+            type="button"
+            onClick={applyCinematicStitchRecipe}
+            className={`rounded-lg border px-3 py-2 text-left text-xs ${
+              visualStyleId === "concept-cinematic" && cinematicSceneCount > 1
+                ? "border-fuchsia-400 bg-white"
+                : "border-fuchsia-200 bg-white/90"
+            }`}
+          >
+            <p className="font-semibold text-fuchsia-950">{m.wizard.conceptCinematicStitchTitle}</p>
+            <p className="mt-0.5 text-fuchsia-800">{m.wizard.conceptCinematicStitchDesc}</p>
+          </button>
+        </div>
+        {visualStyleId === "concept-cinematic" && (
+          <div className="mt-3 rounded-lg border border-fuchsia-200 bg-white/80 p-2">
+            <label className="flex flex-wrap items-center gap-2 text-xs text-fuchsia-950">
+              <span className="font-semibold">{m.wizard.cinematicSceneCountLabel}</span>
+              <select
+                value={cinematicSceneCount}
+                onChange={(e) =>
+                  onCinematicSceneCountChange(Number(e.target.value) as CinematicSceneCount)
+                }
+                className="rounded-md border border-fuchsia-300 bg-white px-2 py-1 text-xs text-fuchsia-950"
+              >
+                {CINEMATIC_SCENE_COUNTS.map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1
+                      ? m.wizard.conceptCinematicSingleTitle
+                      : formatCinematicCopy(m.wizard.cinematicSceneCountOption, n)}
+                  </option>
+                ))}
+              </select>
+              <span className="text-fuchsia-800">
+                {formatCinematicCopy(m.wizard.cinematicSceneCountTotalHint)}
+              </span>
+            </label>
+            <p className="mt-1 text-[11px] text-fuchsia-800">{m.wizard.cinematicSceneCountHint}</p>
+          </div>
+        )}
+        <div className="mt-3 rounded-lg border border-cyan-200 bg-cyan-50/80 p-2">
+          <p className="text-xs font-semibold text-cyan-900">{m.wizard.closestMatchRecipeTitle}</p>
+          <p className="mt-1 text-xs text-cyan-800">{m.wizard.closestMatchRecipeHint}</p>
+          <button
+            type="button"
+            onClick={handleApplyClosestMatchRecipe}
+            className="mt-2 rounded-lg border border-cyan-300 bg-white px-3 py-1.5 text-xs font-semibold text-cyan-900 hover:border-cyan-400"
+          >
+            {m.wizard.closestMatchRecipeApply}
+          </button>
+          {recipeApplyNote && (
+            <p className="mt-1 text-[11px] text-cyan-900">{recipeApplyNote}</p>
+          )}
+        </div>
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 p-2">
+          <p className="text-xs font-semibold text-amber-900">{m.wizard.quickTest8sRecipeTitle}</p>
+          <p className="mt-1 text-xs text-amber-800">{m.wizard.quickTest8sRecipeHint}</p>
+          <button
+            type="button"
+            onClick={handleApplyQuickTest8sRecipe}
+            className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:border-amber-400"
+          >
+            {m.wizard.quickTest8sRecipeApply}
+          </button>
+        </div>
       </div>
     )}
     {!isConcept && (
@@ -384,6 +685,7 @@ export function SetupStep() {
       </p>
     )}
   </div>
+  )}
 
   {isConcept && (
     <div className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-3">
@@ -392,8 +694,11 @@ export function SetupStep() {
       {isConceptVideoOnly && (
         <p className="text-xs font-medium text-cyan-800">{m.wizard.conceptVideoSameBriefHint}</p>
       )}
-      {(isConceptVideoOnly || (isConcept && workflowMode === "combined")) && (
-        <div className="rounded-lg border border-indigo-200 bg-white/80 p-3">
+      {(isConceptVideoOnly || workflowMode === "combined" || workflowMode === "image-only") && (
+        <div
+          className="rounded-lg border border-indigo-200 bg-white/80 p-3"
+          data-coach-id="coach-product-photo"
+        >
           <UploadZone
             label={m.wizard.conceptVideoImageLabel}
             hint={m.wizard.conceptVideoImageHint}
@@ -407,6 +712,7 @@ export function SetupStep() {
         </div>
       )}
       <textarea
+        data-coach-id="coach-concept-idea"
         value={conceptIdea}
         onChange={(e) => setConceptIdea(e.target.value)}
         placeholder={m.wizard.conceptIdeaPlaceholder}
@@ -480,12 +786,16 @@ export function SetupStep() {
   )}
 
   {!usesCompositor && (
-    <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
-      <p className="text-sm font-semibold text-violet-50">
+    <details
+      className="rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3"
+      open={isBrandVisualStyle(visualStyleId)}
+    >
+      <summary className="cursor-pointer text-sm font-semibold text-violet-50">
         {isBrandVisualStyle(visualStyleId)
           ? m.wizard.brandFitTitleRequired
           : m.wizard.brandFitTitle}
-      </p>
+      </summary>
+      <div className="mt-3 space-y-3">
       <p className="text-xs text-violet-200/90">
         {isBrandVisualStyle(visualStyleId)
           ? lockedCampaignMode
@@ -499,6 +809,7 @@ export function SetupStep() {
         {m.wizard.brandWebsiteLabel}
       </label>
       <input
+        data-coach-id="coach-brand-website"
         value={brandWebsiteUrl}
         onChange={(e) => setBrandWebsiteUrl(e.target.value)}
         placeholder={m.wizard.brandWebsitePlaceholder}
@@ -515,7 +826,8 @@ export function SetupStep() {
       />
       <button
         type="button"
-        onClick={analyzeBrand}
+        data-coach-id="coach-analyze-brand"
+        onClick={() => void analyzeBrand()}
         disabled={brandAnalyzeBusy}
         className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
       >
@@ -524,7 +836,8 @@ export function SetupStep() {
       {brandAnalyzeNote && (
         <p className="text-xs text-violet-100/90">{brandAnalyzeNote}</p>
       )}
-    </div>
+      </div>
+    </details>
   )}
 
   <details
@@ -542,6 +855,9 @@ export function SetupStep() {
         workflowMode={workflowMode}
         promotionMode={promotionMode}
       />
+      {!usesCompositor && (
+        <ArtStylePicker value={artStyleId} onChange={setArtStyleId} />
+      )}
     </div>
   </details>
 
@@ -555,6 +871,7 @@ export function SetupStep() {
         {m.wizard.storyboardBriefLabel}
       </label>
       <textarea
+        data-coach-id="coach-storyboard-brief"
         value={storyboardBrief}
         onChange={(e) => setStoryboardBrief(e.target.value)}
         placeholder={m.wizard.storyboardBriefPlaceholder}
@@ -598,6 +915,7 @@ export function SetupStep() {
         {m.wizard.creativeBriefLabel}
       </label>
       <textarea
+        data-coach-id="coach-creative-video-brief"
         value={creativeVideoBrief}
         onChange={(e) => setCreativeVideoBrief(e.target.value)}
         placeholder={m.wizard.creativeBriefPlaceholder}
@@ -663,11 +981,17 @@ export function SetupStep() {
 
   {templateHasSlot(templateId, "product") && (
     <>
-      <label className="block text-sm font-medium text-slate-700">{m.wizard.productLabel}</label>
+      <label className="block text-sm font-medium text-slate-700">
+        {promotionMode === "physical" && !usesCompositor
+          ? m.wizard.productLabelRequired
+          : m.wizard.productLabel}
+      </label>
       <input
+        data-coach-id="coach-product-name"
         value={product}
         onChange={(e) => setProduct(e.target.value)}
         placeholder={m.wizard.productPlaceholder}
+        required={promotionMode === "physical" && !usesCompositor}
         className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500"
       />
     </>
@@ -680,6 +1004,7 @@ export function SetupStep() {
         {isSlotRequired(templateId, "headline") && " *"}
       </label>
       <input
+        data-coach-id="coach-headline"
         value={headline}
         onChange={(e) => setHeadline(e.target.value)}
         placeholder={m.wizard.headlinePlaceholder}
@@ -724,6 +1049,7 @@ export function SetupStep() {
         {usesCompositor ? m.wizard.brandLabel : m.wizard.businessLabel}
       </label>
       <input
+        data-coach-id="coach-business"
         value={business}
         onChange={(e) => setBusiness(e.target.value)}
         placeholder={
@@ -750,9 +1076,17 @@ export function SetupStep() {
     </>
   )}
 
-  <TemplateSlotChecklist templateId={templateId} filled={templateSlotStatus()} />
+  <TemplateSlotChecklist
+    templateId={templateId}
+    filled={templateSlotStatus()}
+    deferredSlotIds={
+      isContentResearchVideoPath
+        ? ["styleRef"]
+        : ["productPhoto", "styleRef", "referenceVideo"]
+    }
+  />
 
-  {workflowMode !== "image-only" && !usesCompositor && (
+  {!usesCompositor && (
     <details
       className="rounded-xl border border-slate-200 bg-white p-3"
       open={showAdvancedSetupPrompts}
@@ -761,7 +1095,7 @@ export function SetupStep() {
       }
     >
       <summary className="cursor-pointer text-sm font-medium text-slate-700">
-        {m.wizard.advancedPrompts}
+        {workflowMode === "image-only" ? m.wizard.imageAdvancedLabel : m.wizard.advancedPrompts}
       </summary>
       <AdvancedPromptPanel
         section={advancedSection}
@@ -780,10 +1114,19 @@ export function SetupStep() {
     </details>
   )}
 
+  {error && <WizardErrorBanner message={error} variant="light" />}
+
+  {setupNextDisabled && setupNextDisabledReason && (
+    <p className="text-center text-xs text-amber-700">{setupNextDisabledReason}</p>
+  )}
+
   <button
     type="button"
+    data-coach-id="coach-continue-setup"
     onClick={goNextFromSetup}
-    className="hidden w-full rounded-2xl bg-linear-to-r from-cyan-500 via-emerald-500 to-teal-500 py-3.5 text-base font-semibold text-white shadow-[0_0_30px_rgba(16,185,129,0.35)] transition hover:scale-[1.01] md:block"
+    disabled={setupNextDisabled}
+    title={setupNextDisabledReason ?? undefined}
+    className="hidden w-full rounded-2xl bg-linear-to-r from-cyan-500 via-emerald-500 to-teal-500 py-3.5 text-base font-semibold text-white shadow-[0_0_30px_rgba(16,185,129,0.35)] transition hover:scale-[1.01] disabled:opacity-40 md:block"
   >
     {continueSetupLabel}
   </button>

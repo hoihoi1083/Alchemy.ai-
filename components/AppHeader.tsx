@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AuthNav } from "@/components/AuthNav";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { useLocale } from "@/components/LocaleProvider";
 import type { PromotionMode } from "@/lib/promotion-mode";
@@ -14,9 +15,10 @@ export function AppHeader(props: {
   const isConcept = props.promotionMode === "concept";
 
   return (
-    <header className="mb-8 rounded-3xl border border-white/40 bg-white/70 px-4 py-6 text-center shadow-sm backdrop-blur">
+    <header className="mb-6 rounded-3xl border border-white/40 bg-white/70 px-3 py-4 text-center shadow-sm backdrop-blur sm:mb-8 sm:px-4 sm:py-6">
       <div className="mb-4 flex items-center justify-center gap-2">
         <LanguageToggle variant="light" />
+        <AuthNav />
         <button
           type="button"
           onClick={props.onToggleTheme}
@@ -49,7 +51,7 @@ export function AppHeader(props: {
         <p className="text-sm font-semibold tracking-wide text-slate-700">alchemy.ai</p>
       </div>
       <p className="text-sm font-medium tracking-wide text-emerald-600">{m.header.badge}</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
         {m.header.title}
       </h1>
       <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-slate-600">
@@ -61,6 +63,10 @@ export function AppHeader(props: {
         </Link>
         <Link href="/pro" className="text-emerald-600 underline hover:text-emerald-500">
           {m.header.proLink}
+        </Link>
+        <span className="mx-2 text-slate-300">·</span>
+        <Link href="/captions" className="text-violet-600 underline hover:text-violet-500">
+          {m.header.captionsLink}
         </Link>
       </p>
     </header>

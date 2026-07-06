@@ -1,5 +1,6 @@
 import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 import type { PromptMarket, SubjectFraming } from "@/lib/prompt-variables";
 import { planProductVideoFromVision } from "@/lib/product-video-plan";
 import {
@@ -34,6 +35,9 @@ function isKitSlot(value: string): value is ProductVideoKitSlot {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
     return NextResponse.json(

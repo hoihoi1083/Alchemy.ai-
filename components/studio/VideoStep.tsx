@@ -8,13 +8,36 @@ import { ReferenceClipPicker } from "@/components/ReferenceClipPicker";
 import { ReferenceUploadZone } from "@/components/ReferenceUploadZone";
 import { TemplateSlotChecklist } from "@/components/TemplateSlotChecklist";
 import { AdvancedPromptPanel } from "@/components/AdvancedPromptPanel";
+import { AdPackReviewPanel } from "@/components/studio/AdPackReviewPanel";
+import { ConceptPreGeneratePanel } from "@/components/studio/ConceptPreGeneratePanel";
 import { WizardErrorBanner } from "@/components/studio/WizardErrorBanner";
+import { VideoOutputSourceCard } from "@/components/studio/VideoOutputSourceCard";
 import { isBrandVideoStyle, isCreativeVideoStyle, isStoryboardVideoStyle } from "@/lib/visual-styles";
+import { isVideoOutputPathLocked, resolveVideoOutputPresentation } from "@/lib/video-output-presentation";
 import { analyzeProductImageFile } from "@/lib/image-upload-quality";
 
 export function VideoStep() {
-  const { applyPromptRebuild, bgmOptions, bgmTrack, brandProfile, creativeVideoBrief, endFramePhoto, endFramePreviewUrl, endFrameUrl, error, extraAnglePhotos, extraKitPhotos, extraKitPreviewUrls, generateVideo, goBackFromVideo, hasFinalImage, headline, imagePrompt, imageUrl, isStoryboardOutput, keyframePreview, loadReferenceClip, m, onReferenceAdFile, onVideoCreativeModeChange, packagingPhoto, packagingPreviewUrl, planAiVideoPrompt, planProductVideo, planProductVideoBusy, planVideoPromptBusy, productPhoto, productVideoPlan, promotionMode, promptExtra, promptMarket, referenceAd, referenceClipLoading, referenceIsVideo, referencePreviewUrl, selectedReferenceClipId, setBgmTrack, setConceptImageVisionNote, setEndFramePhoto, setEndFrameUrl, setError, setExtraAnglePhotos, setExtraKitPhotos, setPackagingPhoto, setImagePrompt, setImageUrl, setProductPhoto, setPromptExtra, setPromptMarket, setShowAdvancedVideo, setSubjectFraming, setUploadQualityWarning, setUseOriginalImage, setVideoPrompt, setVideoSettings, showAdvancedVideo, showVideoReferenceSection, storyboardScenes, subjectFraming, templateId, templateSlotStatus, uploadPreviewUrl, useReferenceVideo, usesCompositor, usesConceptTextVideo, usesProductAssistant, videoBusy, videoCreativeMode, videoGenerateDisabled, videoPhase, videoPreflight, videoProgressInfo, videoPrompt, videoPromptPlanNote, videoSettings, videoStepHint, visualStyleId, workflowMode } = useWizard();
+  const { applyPromptRebuild, bgmOptions, bgmTrack, brandProfile, cinematicScenes, cinematicSceneCount, cinematicStitchReady, conceptReferenceR2vReady, creativeVideoBrief, endFramePhoto, endFramePreviewUrl, endFrameUrl, error, extraAnglePhotos, extraKitPhotos, extraKitPreviewUrls, formatCinematicCopy, generateVideo, goBackFromVideo, hasFinalImage, headline, imagePrompt, imageUrl, isCinematicStitchOutput, isConceptCinematicSingleOutput, isStoryboardOutput, keyframePreview, loadReferenceClip, m, onReferenceAdFile, onVideoCreativeModeChange, packagingPhoto, packagingPreviewUrl, planAiVideoPrompt, planProductVideo, planProductVideoBusy, planVideoPromptBusy, productPhoto, productVideoPlan, promotionMode, promptExtra, promptMarket, referenceAd, referenceClipLoading, referenceIsVideo, referencePreviewUrl, researchReelAnalysis, researchReelAnalyzeBusy, researchReelAnalyzeNote, selectedReferenceClipId, setBgmTrack, setConceptImageVisionNote, setEndFramePhoto, setEndFrameUrl, setError, setExtraAnglePhotos, setExtraKitPhotos, setPackagingPhoto, setImagePrompt, setImageUrl, setProductPhoto, setPromptExtra, setPromptMarket, setShowAdvancedVideo, setSubjectFraming, setUploadQualityWarning, setUseOriginalImage, setVideoPrompt, setVideoSettings, showAdvancedVideo, showVideoReferenceSection, storyboardScenes, subjectFraming, templateId, templateSlotStatus, uploadPreviewUrl, useReferenceVideo, usesCompositor, usesConceptTextVideo, usesProductAssistant, videoBusy, videoCreativeMode, videoGenerateDisabled, videoGenerateDisabledReason, videoPhase, videoPreflight, videoProgressInfo, videoPrompt, videoPromptPlanNote, videoSettings, videoStepHint, visualStyleId, workflowMode } = useWizard();
   const isConcept = promotionMode === "concept";
+  const showCinematicStitch = isCinematicStitchOutput || cinematicStitchReady;
+  const showConceptCinematicSingle =
+    isConceptCinematicSingleOutput && cinematicScenes.length > 0;
+  const videoOutputId = resolveVideoOutputPresentation({
+    workflowMode,
+    usesCompositor,
+    isStoryboardOutput,
+    shouldCinematicStitch: showCinematicStitch,
+    isConceptCinematicSingleOutput,
+    usesProductAssistant,
+    conceptTextVideoReady: usesConceptTextVideo && Boolean(videoPrompt.trim()),
+    videoCreativeMode,
+    useReferenceVideo,
+    hasReferenceAd: Boolean(referenceAd),
+  });
+  const hideVideoModePicker =
+    Boolean(videoOutputId && isVideoOutputPathLocked(videoOutputId)) ||
+    showCinematicStitch ||
+    isConceptCinematicSingleOutput;
   return (
 <section className="space-y-6 rounded-3xl border border-slate-800 bg-slate-950/70 p-5 shadow-xl shadow-slate-900/40 backdrop-blur">
   <div className="h-1 w-full animate-pulse rounded-full bg-linear-to-r from-violet-500 via-cyan-400 to-teal-400" />
@@ -27,10 +50,73 @@ export function VideoStep() {
     </p>
   </div>
 
+  <VideoOutputSourceCard variant="video" />
+
   {isConcept && workflowMode === "video-only" && (
     <p className="rounded-xl border border-cyan-900/50 bg-cyan-950/30 px-4 py-3 text-xs text-cyan-100">
       {m.wizard.conceptVideoStepIntro}
     </p>
+  )}
+
+  {showCinematicStitch && (
+    <p className="rounded-xl border border-fuchsia-800/50 bg-fuchsia-950/30 px-4 py-3 text-xs text-fuchsia-100">
+      {formatCinematicCopy(m.wizard.cinematicStitchWorkflowOrder)}
+    </p>
+  )}
+
+  {isConcept && visualStyleId === "concept-cinematic" && (
+    <div className="rounded-xl border border-fuchsia-900/50 bg-fuchsia-950/25 px-4 py-3 text-xs text-fuchsia-100">
+      <p className="font-semibold text-fuchsia-50">{m.wizard.cinematicRecipeTitle}</p>
+      <ul className="mt-2 list-disc space-y-1 pl-4">
+        {(showCinematicStitch
+          ? m.wizard.cinematicStitchRecipeSteps
+          : isConceptCinematicSingleOutput
+            ? m.wizard.conceptCinematicSingleRecipeSteps
+            : m.wizard.cinematicRecipeSteps
+        ).map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  {showConceptCinematicSingle && (
+    <div className="rounded-xl border border-fuchsia-800/50 bg-fuchsia-950/30 p-4">
+      <p className="text-sm font-semibold text-fuchsia-100">{m.wizard.conceptCinematicSingleSceneReady}</p>
+      <div className="mt-3 max-w-xs">
+        <img
+          src={cinematicScenes[0].imageUrl}
+          alt=""
+          className="aspect-[9/16] w-full rounded-lg border border-slate-700 object-cover"
+        />
+        <p className="mt-1 text-center text-[10px] text-slate-300">0–8s</p>
+      </div>
+    </div>
+  )}
+
+  {showCinematicStitch && cinematicScenes.length > 0 && (
+    <div className="rounded-xl border border-fuchsia-800/50 bg-fuchsia-950/30 p-4">
+      <p className="text-sm font-semibold text-fuchsia-100">
+        {formatCinematicCopy(m.wizard.cinematicStitchScenesReady).replace(
+          "{ready}",
+          String(cinematicScenes.length),
+        )}
+      </p>
+      <div
+        className={`mt-3 grid gap-2 ${
+          cinematicScenes.length <= 3 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-6"
+        }`}
+      >
+        {cinematicScenes.map((scene) => (
+          <div key={scene.sceneIndex} className="rounded-lg border border-slate-700 bg-slate-900/50 p-1">
+            <img src={scene.imageUrl} alt="" className="aspect-[9/16] w-full rounded object-cover" />
+            <p className="mt-1 text-center text-[10px] text-slate-300">
+              {scene.startSec}–{scene.endSec}s
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
   )}
 
   {isConcept && workflowMode === "video-only" && productPhoto && (
@@ -41,7 +127,9 @@ export function VideoStep() {
 
   {workflowMode === "combined" &&
     imageUrl &&
-    videoCreativeMode === "image-to-video" && (
+    videoCreativeMode === "image-to-video" &&
+    !showCinematicStitch &&
+    !isConceptCinematicSingleOutput && (
       <p className="rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-xs text-emerald-100">
         {m.wizard.combinedVideoKeyframeCallout}
       </p>
@@ -63,7 +151,7 @@ export function VideoStep() {
   )}
 
   {/* Reference ad MP4 — only when template includes this slot */}
-  {!usesCompositor && !isStoryboardOutput && !(isConcept && workflowMode === "video-only") && (
+  {!usesCompositor && !hideVideoModePicker && !(isConcept && workflowMode === "video-only") && (
     <VideoCreativeModePicker
       goal={workflowMode}
       promotionMode={promotionMode}
@@ -196,7 +284,7 @@ export function VideoStep() {
 
   {!usesCompositor && <VideoSettingsPanel value={videoSettings} onChange={setVideoSettings} />}
 
-  {!usesCompositor && !isStoryboardOutput && !usesProductAssistant && !usesConceptTextVideo && (
+  {!usesCompositor && !isStoryboardOutput && !showCinematicStitch && !isConceptCinematicSingleOutput && !usesProductAssistant && !usesConceptTextVideo && (
     <div className="rounded-xl border border-sky-900/50 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
       <p className="font-semibold text-sky-50">{m.wizard.videoWearVarietyTitle}</p>
       <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-sky-100/90">
@@ -207,7 +295,7 @@ export function VideoStep() {
     </div>
   )}
 
-  {!usesCompositor && !isStoryboardOutput && !usesProductAssistant && (
+  {!usesCompositor && !isStoryboardOutput && !showCinematicStitch && !isConceptCinematicSingleOutput && !usesProductAssistant && (
     <div className="space-y-3 rounded-xl border border-violet-900/50 bg-violet-950/25 px-4 py-3">
       <p className="text-sm font-semibold text-violet-50">{m.wizard.planVideoPromptBtn}</p>
       <p className="text-xs text-violet-200/90">
@@ -268,7 +356,7 @@ export function VideoStep() {
       </div>
     )}
 
-  {!usesCompositor && videoCreativeMode !== "reference-concept" && !usesConceptTextVideo && (
+  {!usesCompositor && videoCreativeMode !== "reference-concept" && !usesConceptTextVideo && !showCinematicStitch && !isConceptCinematicSingleOutput && (
     <UploadZone
       label={m.wizard.endFrameLabel}
       hint={m.wizard.endFrameHint}
@@ -314,6 +402,17 @@ export function VideoStep() {
         <p className="rounded-lg bg-emerald-900/40 px-3 py-2 text-xs text-emerald-200">
           {m.wizard.referenceModeActive}
         </p>
+        {(researchReelAnalyzeBusy || researchReelAnalyzeNote) && (
+          <p className="rounded-lg bg-purple-950/40 px-3 py-2 text-xs text-purple-100">
+            {researchReelAnalyzeBusy ? m.wizard.researchReelAnalyzing : researchReelAnalyzeNote}
+          </p>
+        )}
+        {workflowMode === "video-only" && useReferenceVideo && (
+          <p className="text-xs text-slate-400">{m.wizard.referenceR2vDurationHint}</p>
+        )}
+        {researchReelAnalysis?.productionNotesZh ? (
+          <p className="text-xs text-slate-400">{researchReelAnalysis.productionNotesZh}</p>
+        ) : null}
         {workflowMode === "video-only" && (imageUrl || productPhoto) && (
           <p className="rounded-lg border border-amber-900/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-100">
             {m.wizard.videoRefProductMismatch}
@@ -338,12 +437,24 @@ export function VideoStep() {
 
   )}
 
-  <TemplateSlotChecklist templateId={templateId} filled={templateSlotStatus()} />
+  <TemplateSlotChecklist
+    templateId={templateId}
+    filled={templateSlotStatus()}
+    optionalSlotIds={
+      showCinematicStitch || isConceptCinematicSingleOutput
+        ? ["productPhoto", "product", "business", "referenceVideo", "headline", "subline", "offer"]
+        : undefined
+    }
+  />
 
   <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
     <h3 className="text-sm font-semibold text-white">
       {isStoryboardOutput
         ? m.wizard.storyboardKeyframeSectionTitle
+        : showCinematicStitch
+          ? formatCinematicCopy(m.wizard.cinematicStitchOutputTitle)
+        : isConceptCinematicSingleOutput
+          ? m.wizard.conceptCinematicSingleOutputTitle
         : usesConceptTextVideo
           ? m.wizard.conceptVideoPromptSectionTitle
           : m.wizard.videoSectionKeyframe}
@@ -365,6 +476,10 @@ export function VideoStep() {
           </p>
         )}
       </div>
+    ) : showCinematicStitch && cinematicScenes.length > 0 ? (
+      <p className="text-xs text-fuchsia-200/90">{formatCinematicCopy(m.wizard.cinematicStitchImageHint)}</p>
+    ) : isConceptCinematicSingleOutput && cinematicScenes.length > 0 ? (
+      <p className="text-xs text-fuchsia-200/90">{m.wizard.conceptCinematicSingleOutputDesc}</p>
     ) : isStoryboardOutput && storyboardScenes.length > 0 ? (
       <div className="space-y-3">
         <p className="text-xs text-teal-200/90">{m.wizard.storyboardAllScenesHint}</p>
@@ -448,6 +563,10 @@ export function VideoStep() {
           </button>
         )}
       </div>
+    ) : conceptReferenceR2vReady ? (
+      <p className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-100">
+        {m.wizard.conceptVideoRefKeyframeReady}
+      </p>
     ) : (
       <p className="rounded-lg bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
         {m.wizard.needKeyframeGoBack}
@@ -455,27 +574,36 @@ export function VideoStep() {
     )}
   </div>
 
-  <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
-    <h3 className="text-sm font-semibold text-white">{m.wizard.videoSectionBgm}</h3>
-    <div className="flex flex-wrap gap-2">
-      {bgmOptions.map(({ id, label }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => setBgmTrack(id)}
-          className={`rounded-full px-4 py-2 text-sm font-medium ${
-            bgmTrack === id
-              ? "bg-emerald-600 text-white"
-              : "border border-slate-600 text-slate-400"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+  {!usesCompositor ? (
+    <>
+      {isConcept && <ConceptPreGeneratePanel />}
+      <div data-coach-id="coach-ad-pack">
+        <AdPackReviewPanel />
+      </div>
+    </>
+  ) : (
+    <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
+      <h3 className="text-sm font-semibold text-white">{m.wizard.videoSectionBgm}</h3>
+      <div className="flex flex-wrap gap-2">
+        {bgmOptions.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setBgmTrack(id)}
+            className={`rounded-full px-4 py-2 text-sm font-medium ${
+              bgmTrack === id
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-600 text-slate-400"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
-  </div>
+  )}
 
-  {usesProductAssistant && videoPrompt.trim() && (
+  {usesProductAssistant && productVideoPlan && videoPrompt.trim() && (
     <div className="space-y-2 rounded-xl border border-cyan-900/50 bg-cyan-950/25 p-4">
       <p className="text-sm font-semibold text-cyan-50">{m.wizard.productVideoPlanLabel}</p>
       <p className="text-xs text-cyan-200/80">{m.wizard.productVideoPlanHint}</p>
@@ -550,7 +678,11 @@ export function VideoStep() {
           : videoPhase === "second-frame"
             ? m.wizard.phaseSecondFrame
             : videoPhase === "bgm"
-              ? m.wizard.phaseBgm
+            ? m.wizard.phaseBgm
+            : videoPhase === "voiceover"
+              ? m.wizard.phaseVoiceover
+            : videoPhase === "captions"
+              ? m.wizard.phaseCaptions
               : m.wizard.phaseVideo}
       </p>
       {videoProgressInfo && (
@@ -570,7 +702,11 @@ export function VideoStep() {
     </div>
   )}
 
-  <div className="hidden gap-3 md:flex">
+  <div className="hidden flex-col gap-2 md:flex">
+    {videoGenerateDisabled && !videoBusy && videoGenerateDisabledReason && (
+      <p className="text-center text-xs text-amber-200/90">{videoGenerateDisabledReason}</p>
+    )}
+    <div className="flex gap-3">
     <button
       type="button"
       disabled={videoBusy}
@@ -581,7 +717,9 @@ export function VideoStep() {
     </button>
     <button
       type="button"
+      data-coach-id="coach-generate-video"
       disabled={videoGenerateDisabled}
+      title={videoGenerateDisabledReason ?? undefined}
       onClick={generateVideo}
       className="flex-1 rounded-2xl bg-linear-to-r from-cyan-500 via-emerald-500 to-teal-500 py-3.5 text-base font-semibold text-white shadow-[0_0_28px_rgba(16,185,129,0.35)] disabled:opacity-40"
     >
@@ -591,13 +729,20 @@ export function VideoStep() {
           : m.wizard.phaseVideo
         : usesCompositor
           ? m.wizard.compositorVideoBtn
-          : m.wizard.generateVideoBtn}
+          : showCinematicStitch
+            ? formatCinematicCopy(m.wizard.cinematicStitchGenerateVideoBtn)
+            : isConceptCinematicSingleOutput
+              ? m.wizard.conceptCinematicSingleGenerateVideoBtn
+            : m.wizard.generateVideoBtn}
     </button>
+    </div>
   </div>
-  {!videoBusy && usesProductAssistant && productPhoto && !productVideoPlan && (
-    <p className="text-center text-xs text-amber-200/90">{m.wizard.productVideoAnalyzeFirstHint}</p>
+  {!videoBusy && usesProductAssistant && !productVideoPlan && (
+    <p className="text-center text-xs text-amber-200/90">
+      {productPhoto ? m.wizard.productVideoAnalyzeFirstHint : m.wizard.productVideoUploadFirstHint}
+    </p>
   )}
-  {!videoBusy && !hasFinalImage && !usesProductAssistant && !usesConceptTextVideo && (
+  {!videoBusy && !hasFinalImage && !usesProductAssistant && !usesConceptTextVideo && !conceptReferenceR2vReady && (
     <p className="text-center text-xs text-amber-200/90">
       {isConcept && productPhoto
         ? m.wizard.conceptVideoKeyframeFromSetup

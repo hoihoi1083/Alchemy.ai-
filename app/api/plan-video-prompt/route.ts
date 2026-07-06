@@ -5,11 +5,15 @@ import {
   planVideoPrompt,
 } from "@/lib/video-prompt-plan";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   let body: {
     mode?: "brand" | "creative" | "product";
     brandProfile?: BrandProfile;

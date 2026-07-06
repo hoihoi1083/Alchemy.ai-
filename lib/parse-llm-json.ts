@@ -1,3 +1,5 @@
+import { jsonrepair } from "jsonrepair";
+
 /** Strip ```json fences from model output. */
 export function stripMarkdownFence(raw: string): string {
   const t = raw.trim();
@@ -108,6 +110,12 @@ export function parseLlmJsonObject<T>(raw: string, label = "Model"): T {
   const slice = cleaned.slice(start, end + 1);
   const candidates = [slice, repairJsonText(slice)];
 
+  try {
+    candidates.push(jsonrepair(slice));
+  } catch {
+    // jsonrepair could not fix — other passes may still work
+  }
+
   let lastError: unknown;
   for (const candidate of candidates) {
     try {
@@ -115,6 +123,12 @@ export function parseLlmJsonObject<T>(raw: string, label = "Model"): T {
     } catch (e) {
       lastError = e;
     }
+  }
+
+  try {
+    return JSON.parse(jsonrepair(repairJsonText(slice))) as T;
+  } catch (e) {
+    lastError = e;
   }
 
   const detail = lastError instanceof Error ? lastError.message : "parse failed";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -12,6 +13,9 @@ function safeName(input: string): string {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

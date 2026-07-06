@@ -1,9 +1,14 @@
 import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import type { BrandProfile } from "@/lib/brand-profile";
 import type { CampaignPlan } from "@/lib/campaign-types";
 import { planCampaign } from "@/lib/campaign-plan";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
+import {
+  parseStrategyFromFormData,
+  referenceStrategyPromptBlock,
+} from "@/lib/reference-strategy";
 import {
   buildCampaignSlideImagePrompt,
   buildPromptVariables,
@@ -13,6 +18,7 @@ import {
 } from "@/lib/prompt-variables";
 import type { VisualStyleId } from "@/lib/visual-styles";
 import { requiresBrandProfileForImages } from "@/lib/visual-styles";
+import { artStyleSystemPrompt, resolveArtStyleId } from "@/lib/art-style";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -53,6 +59,9 @@ function aspectRatioForApi(ratio: string): string {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
     return NextResponse.json(
@@ -70,9 +79,26 @@ export async function POST(request: Request) {
   }
 
   const reference = formData.get("reference_image");
+  const styleRef = formData.get("style_reference_image");
   const hasProduct = reference instanceof File && reference.size > 0;
+  const hasStyle = styleRef instanceof File && styleRef.size > 0;
+  const creativeMode =
+    (formData.get("image_creative_mode") as string | null)?.trim() || "promo-ai";
+  const { strategy, brief } = parseStrategyFromFormData(formData);
+  const useReferenceConcept = strategy.useReferenceConceptPrompts;
+  const dualImage = strategy.useDualImage;
   const promotionMode = ((formData.get("promotion_mode") as string | null)?.trim() ||
     "physical") as "physical" | "concept";
+
+  if (creativeMode === "reference-concept" && strategy.kind === "layout-transfer" && !dualImage) {
+    return NextResponse.json(
+      {
+        error:
+          "Reference concept needs both a product photo and a reference ad image (JPG/PNG).",
+      },
+      { status: 400 },
+    );
+  }
 
   const visualStyle = ((formData.get("visual_style") as string | null)?.trim() ||
     "product") as VisualStyleId;
@@ -107,13 +133,18 @@ export async function POST(request: Request) {
     "en") as PromptMarket;
   const subjectFraming = ((formData.get("subject_framing") as string | null)?.trim() ||
     "auto") as SubjectFraming;
-  const promptExtra = (formData.get("prompt_extra") as string | null)?.trim() || "";
+  const promptExtraRaw = (formData.get("prompt_extra") as string | null)?.trim() || "";
+  const strategyBlock = brief ? referenceStrategyPromptBlock(brief, strategy) : "";
+  const promptExtra = [promptExtraRaw, strategyBlock].filter(Boolean).join(" | ");
   const aspectRatio = aspectRatioForApi(
     (formData.get("aspect_ratio") as string | null)?.trim() || "9:16",
   );
   const endpoint =
     (formData.get("endpoint") as string | null)?.trim() ||
-    (hasProduct ? defaultEditEndpoint() : defaultTextEndpoint());
+    (strategy.sendPixelsToFal ? defaultEditEndpoint() : defaultTextEndpoint());
+
+  const artStyleId = resolveArtStyleId((formData.get("art_style") as string | null)?.trim());
+  const systemPrompt = artStyleSystemPrompt(artStyleId);
 
   const vars = buildPromptVariables({
     product: productName,
@@ -124,9 +155,14 @@ export async function POST(request: Request) {
     market: promptMarket,
     framing: subjectFraming,
     extra: promptExtra,
+    artStyle: artStyleId,
   });
 
-  const promptMode = resolveImagePromptMode(visualStyle, "promo-ai");
+  const promptMode = resolveImagePromptMode(
+    visualStyle,
+    useReferenceConcept ? "reference-concept" : "promo-ai",
+    { promotionMode, workflowMode: "image-only" },
+  );
 
   let plan: CampaignPlan;
   try {
@@ -139,6 +175,9 @@ export async function POST(request: Request) {
       subline,
       offer,
       brandProfile,
+      promotionMode,
+      hasReferenceLayout: strategy.useDualImage,
+      promptExtra,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Campaign planning failed.";
@@ -152,7 +191,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const productUrl = hasProduct ? await fal.storage.upload(reference as File) : null;
+    let imageUrlsForFal: string[] | null = null;
+    if (strategy.sendPixelsToFal) {
+      imageUrlsForFal = [];
+      if (strategy.useDualImage && dualImage) {
+        if (hasStyle) imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
+        if (hasProduct) imageUrlsForFal.push(await fal.storage.upload(reference as File));
+      } else if (hasProduct) {
+        imageUrlsForFal.push(await fal.storage.upload(reference as File));
+      } else if (hasStyle) {
+        imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
+      }
+    }
+
     const slides: Array<{
       role: string;
       title: string;
@@ -172,16 +223,21 @@ export async function POST(request: Request) {
         i,
         plan.slides.length,
         hasProduct,
+        {
+          visualStyleId: visualStyle,
+          referenceConcept: strategy.useReferenceConceptPrompts,
+        },
       );
 
       const result = await fal.subscribe(endpoint, {
         input: {
           prompt,
-          ...(productUrl ? { image_urls: [productUrl] } : {}),
+          ...(imageUrlsForFal?.length ? { image_urls: imageUrlsForFal } : {}),
           aspect_ratio: aspectRatio,
           num_images: 1,
           resolution: "1K" as const,
           limit_generations: true,
+          ...(systemPrompt ? { system_prompt: systemPrompt } : {}),
         },
         logs: true,
       });
@@ -204,6 +260,7 @@ export async function POST(request: Request) {
     }
 
     const imageUrls = slides.map((s) => s.imageUrl);
+    await trackUsage(auth.user.userId, "campaign");
     return NextResponse.json({
       plan,
       slides,

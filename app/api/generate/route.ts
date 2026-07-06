@@ -1,5 +1,6 @@
 import { fal, ApiError } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import {
   isSeedanceSensitiveError,
   softenSeedancePromptForModeration,
@@ -169,6 +170,9 @@ function applyAdvancedGuidance(prompt: string, opts: {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   const key = process.env.FAL_KEY?.trim();
   if (!key) {
     return NextResponse.json(
@@ -186,7 +190,13 @@ export async function POST(request: Request) {
   try {
     formData = await request.formData();
   } catch {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          "Reference video upload too large. Re-pick the post from research (auto-trims to 15s) or upload a shorter clip.",
+      },
+      { status: 413 },
+    );
   }
 
   const mode = (formData.get("mode") as string) as Mode;
@@ -284,6 +294,7 @@ export async function POST(request: Request) {
       if (!videoUrl) {
         throw new Error("Model response missing video URL.");
       }
+      await trackUsage(auth.user.userId, "video");
       return NextResponse.json({
         videoUrl,
         seed: result.data.seed,
@@ -327,6 +338,7 @@ export async function POST(request: Request) {
       if (!videoUrl) {
         throw new Error("Model response missing video URL.");
       }
+      await trackUsage(auth.user.userId, "video");
       return NextResponse.json({
         videoUrl,
         seed: result.data.seed,
@@ -383,6 +395,12 @@ export async function POST(request: Request) {
       .split(/[\n,]+/)
       .map((u) => u.trim())
       .filter(Boolean);
+    const directVideoUrls =
+      (formData.get("reference_video_urls") as string | null)
+        ?.trim()
+        .split(/[\n,]+/)
+        .map((u) => u.trim())
+        .filter(Boolean) ?? [];
     const uploadedImageUrls =
       nonEmptyImages.length > 0
         ? await Promise.all(nonEmptyImages.map((f) => fal.storage.upload(f)))
@@ -393,10 +411,12 @@ export async function POST(request: Request) {
       ...(imageRefUrl ? [imageRefUrl] : []),
     ];
     const imageUrlsFinal = image_urls.length > 0 ? image_urls : undefined;
-    const video_urls =
+    const uploadedVideoUrls =
       nonEmptyVideos.length > 0
         ? await Promise.all(nonEmptyVideos.map((f) => fal.storage.upload(f)))
-        : undefined;
+        : [];
+    const video_urls = [...directVideoUrls, ...uploadedVideoUrls];
+    const videoUrlsFinal = video_urls.length > 0 ? video_urls : undefined;
     const audio_urls =
       nonEmptyAudios.length > 0
         ? await Promise.all(nonEmptyAudios.map((f) => fal.storage.upload(f)))
@@ -404,7 +424,7 @@ export async function POST(request: Request) {
 
     const hasRefs =
       (imageUrlsFinal?.length ?? 0) > 0 ||
-      (video_urls?.length ?? 0) > 0 ||
+      (videoUrlsFinal?.length ?? 0) > 0 ||
       (audio_urls?.length ?? 0) > 0;
 
     if (!hasRefs) {
@@ -418,7 +438,7 @@ export async function POST(request: Request) {
     }
 
     const imageCount = imageUrlsFinal?.length ?? 0;
-    const videoCount = video_urls?.length ?? 0;
+    const videoCount = videoUrlsFinal?.length ?? 0;
     const audioCount = audio_urls?.length ?? 0;
     const { prompt: taggedPrompt, added: addedTags } = ensureReferenceTags(
       common.prompt,
@@ -431,7 +451,7 @@ export async function POST(request: Request) {
       ...common,
       prompt: taggedPrompt,
       ...(imageUrlsFinal?.length ? { image_urls: imageUrlsFinal } : {}),
-      ...(video_urls?.length ? { video_urls } : {}),
+      ...(videoUrlsFinal?.length ? { video_urls: videoUrlsFinal } : {}),
       ...(audio_urls?.length ? { audio_urls } : {}),
     };
     const { result, usedDurationFallback } = await subscribeWithDurationFallback(
@@ -453,13 +473,14 @@ export async function POST(request: Request) {
       );
     }
 
+    await trackUsage(auth.user.userId, "video");
     return NextResponse.json({
       videoUrl,
       seed: result.data.seed,
       requestId: result.requestId,
       generationMode: "reference-to-video",
       endpoint: endpointFor("reference", fast, formData),
-      referenceVideoCount: nonEmptyVideos.length,
+      referenceVideoCount: videoUrlsFinal?.length ?? nonEmptyVideos.length,
       referenceImageCount: imageUrlsFinal?.length ?? 0,
       ...(addedTags.length
         ? { note: [...notes, `Auto-added tags: ${addedTags.join(", ")}`].join(" ") }

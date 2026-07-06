@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { requireAppUser } from "@/lib/require-app-user";
 import { synthesizeCantoneseToFile } from "@/lib/pipeline/azureTts";
 import {
   attachSoftSubtitleTrack,
@@ -25,6 +26,9 @@ type RewriteProvider = "none" | "openai";
 type DubProvider = "none" | "azure";
 
 export async function POST(request: Request) {
+  const auth = await requireAppUser();
+  if (!auth.ok) return auth.response;
+
   let formData: FormData;
   try {
     formData = await request.formData();

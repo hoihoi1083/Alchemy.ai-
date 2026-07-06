@@ -23,13 +23,27 @@ export async function synthesizeCantoneseToFile(args: {
   voice: string;
   outputWavPath: string;
 }): Promise<void> {
+  return synthesizeSpeechToFile({
+    text: args.text,
+    voice: args.voice,
+    xmlLang: "zh-HK",
+    outputWavPath: args.outputWavPath,
+  });
+}
+
+export async function synthesizeSpeechToFile(args: {
+  text: string;
+  voice: string;
+  xmlLang: string;
+  outputWavPath: string;
+}): Promise<void> {
   const { key, region } = getAzureConfig();
-  const { text, voice, outputWavPath } = args;
+  const { text, voice, xmlLang, outputWavPath } = args;
   const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
 
   const ssml = [
-    "<speak version='1.0' xml:lang='zh-HK'>",
-    `<voice xml:lang='zh-HK' name='${voice}'>`,
+    `<speak version='1.0' xml:lang='${xmlLang}'>`,
+    `<voice xml:lang='${xmlLang}' name='${voice}'>`,
     escapeXml(text),
     "</voice>",
     "</speak>",
@@ -41,7 +55,7 @@ export async function synthesizeCantoneseToFile(args: {
       "Ocp-Apim-Subscription-Key": key,
       "Content-Type": "application/ssml+xml",
       "X-Microsoft-OutputFormat": "riff-24khz-16bit-mono-pcm",
-      "User-Agent": "seadance-video-postprocess",
+      "User-Agent": "ai-marketing-studio-postprocess",
     },
     body: ssml,
   });

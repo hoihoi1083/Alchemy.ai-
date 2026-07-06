@@ -1,24 +1,18 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { jobDir } from "@/lib/pipeline/paths";
+import { jobDir, isValidJobId } from "@/lib/pipeline/paths";
+import { PIPELINE_FILES } from "@/lib/pipeline/local-input";
 
-const ALLOWED_FILES = new Set([
-  "input.mp4",
-  "corrected.srt",
-  "dubbed.wav",
-  "final.mp4",
-  "subtitled.mp4",
-  "with-bgm.mp4",
-  "composed.png",
-  "composed.mp4",
-]);
+const ALLOWED_FILES = PIPELINE_FILES;
 
 function contentType(fileName: string): string {
   if (fileName.endsWith(".mp4")) return "video/mp4";
   if (fileName.endsWith(".png")) return "image/png";
   if (fileName.endsWith(".srt")) return "application/x-subrip";
   if (fileName.endsWith(".wav")) return "audio/wav";
+  if (fileName.endsWith(".mp3")) return "audio/mpeg";
   return "application/octet-stream";
 }
 
@@ -26,7 +20,15 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ jobId: string; file: string }> },
 ) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { jobId, file } = await context.params;
+  if (!isValidJobId(jobId)) {
+    return NextResponse.json({ error: "File not found." }, { status: 404 });
+  }
   if (!ALLOWED_FILES.has(file)) {
     return NextResponse.json({ error: "File not found." }, { status: 404 });
   }
