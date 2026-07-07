@@ -414,6 +414,61 @@ function mapItems(
   return filterPostsByMedia(mapped, mediaFilter).slice(0, limit);
 }
 
+/** Unwrap get-note-detail/v5|v7 JSON into a single note object. */
+export function extractXhsNoteFromDetailResponse(
+  body: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const rawData = body.data;
+
+  // v7 often returns data: [{ note_list: [{ id, title, images_list, ... }] }]
+  if (Array.isArray(rawData)) {
+    for (const entry of rawData) {
+      const block = asRecord(entry);
+      if (!block) continue;
+      const noteList = block.note_list ?? block.noteList;
+      if (Array.isArray(noteList)) {
+        for (const item of noteList) {
+          const note = asRecord(item);
+          if (note && (note.id || note.note_id || note.title || note.desc)) return note;
+        }
+      }
+      if (block.id || block.note_id || block.title || block.desc) return block;
+    }
+    return null;
+  }
+
+  const data = asRecord(rawData);
+  if (!data || Object.keys(data).length === 0) return null;
+
+  const noteList = data.note_list ?? data.noteList;
+  if (Array.isArray(noteList) && noteList.length > 0) {
+    const note = asRecord(noteList[0]);
+    if (note) return note;
+  }
+
+  return (
+    asRecord(data.note) ??
+    asRecord(data.note_detail) ??
+    asRecord(data.noteDetail) ??
+    asRecord(data.item) ??
+    data
+  );
+}
+
+/** XHS CDN hosts that work through our image proxy (signed rednotecdn URLs). */
+export function xhsCoverUrlLooksFetchable(url?: string): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("rednotecdn.com")) return true;
+    // v7 often returns bare sns-img-hw.xhscdn.net paths that 404 without signature.
+    if (host.includes("sns-img-hw.xhscdn.net") && !url.includes("sign=")) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Map a single search/detail API item to a research post card. */
 export function mapRawPlatformPost(
   platform: ContentPlatform,

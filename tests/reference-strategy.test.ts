@@ -76,4 +76,19 @@ describe("reference-strategy for content research flows", () => {
     });
     assert.ok(s.kind === "style-only" || s.kind === "mood-only");
   });
+
+  it("campaign + style ref only → style-only (concept)", () => {
+    const s = resolveReferenceStrategy({
+      promotionMode: "concept",
+      imageOutputMode: "campaign",
+      visualStyleId: "product",
+      imageCreativeMode: "reference-concept",
+      hasReferenceUpload: true,
+      hasProductPhoto: false,
+      hasReferenceBrief: true,
+    });
+    assert.equal(s.kind, "style-only");
+    assert.equal(s.referenceImageMode, "style-only");
+    assert.equal(s.sendPixelsToFal, true);
+  });
 });

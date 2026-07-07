@@ -6,6 +6,7 @@ import {
   pickVideoUrl,
 } from "@/lib/justoneapi-client";
 import { exploreIdFromUrl } from "@/lib/content-research-enrich";
+import { extractXhsNoteFromDetailResponse } from "@/lib/justoneapi-platform-search";
 
 function xhsNoteId(postId: string, postUrl?: string): string | null {
   const fromUrl = postUrl ? exploreIdFromUrl(postUrl) : null;
@@ -31,14 +32,20 @@ export async function resolvePostVideoUrl(
     case "xiaohongshu": {
       const noteId = xhsNoteId(postId, postUrl);
       if (!noteId) return undefined;
-      const body = await fetchJustOneApi(
+      for (const path of [
+        "/api/xiaohongshu/get-note-detail/v1",
+        "/api/xiaohongshu/get-note-detail/v4",
+        "/api/xiaohongshu/get-note-detail/v2",
         "/api/xiaohongshu/get-note-detail/v5",
-        { noteId },
-        "XHS note detail for video",
-      );
-      const data = asRecord(body.data) ?? body;
-      const note = asRecord(data.note) ?? data;
-      return pickVideoUrl(note?.video, note?.native_video, note?.video_info);
+        "/api/xiaohongshu/get-note-detail/v7",
+      ] as const) {
+        const body = await fetchJustOneApi(path, { noteId }, "XHS note detail for video");
+        const note = extractXhsNoteFromDetailResponse(body);
+        if (!note) continue;
+        const url = pickVideoUrl(note.video, note.native_video, note.video_info);
+        if (url) return url;
+      }
+      return undefined;
     }
     case "instagram": {
       const code = igShortcode(postId, postUrl);

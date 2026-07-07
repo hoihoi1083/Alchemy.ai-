@@ -832,10 +832,15 @@ export function buildCampaignSlideImagePrompt(
   options?: {
     visualStyleId?: VisualStyleId;
     referenceConcept?: boolean;
+    referenceImageMode?: ReferenceImageMode;
     carouselSlideRef?: CarouselSlideReferenceBrief;
   },
 ): string {
-  const referenceConcept = Boolean(options?.referenceConcept && hasReferenceImage);
+  const referenceImageMode =
+    options?.referenceImageMode ?? (hasReferenceImage ? "clone" : "none");
+  const referenceConcept = Boolean(
+    options?.referenceConcept && referenceImageMode === "clone",
+  );
   const slideVars: PromptVariables = {
     ...vars,
     headline: slide.headline || vars.headline,
@@ -846,7 +851,9 @@ export function buildCampaignSlideImagePrompt(
     : "";
   const campaignBlock = joinParts(
     artStyleMandatoryLead(slideVars.artStyle),
-    !referenceConcept && hasReferenceImage ? imageReferenceAnchorBlock(slideVars) : "",
+    !referenceConcept
+      ? referenceBlockForMode(referenceImageMode, slideVars, slide.composition)
+      : "",
     `LINKED CAMPAIGN (${totalSlides} posts — image ${slideIndex + 1}/${totalSlides}).`,
     plan.theme ? `Campaign theme: ${plan.theme}.` : "",
     `This slide: ${slide.title} [${slide.role}].`,
@@ -856,9 +863,11 @@ export function buildCampaignSlideImagePrompt(
     `Shared series styling (colors, typography, mood — same on every slide): ${plan.visualDna}.`,
     referenceConcept
       ? "Keep IMAGE 1 ad design language on every slide — vary headline, layout role, and slide copy only; IMAGE 2 product must appear on every slide."
-      : hasReferenceImage
-        ? "Each slide varies headline/message and layout role only — IMAGE 1 subject must stay recognizable on every slide."
-        : "Each slide varies headline/message and layout role only — keep one consistent campaign art direction across all slides.",
+      : referenceImageMode === "style-only"
+        ? "Match IMAGE 1 palette, typography mood, and infographic/edu aesthetic on every slide — distinct layout role and copy per slide; never copy reference on-image text."
+        : referenceImageMode === "clone"
+          ? "Each slide varies headline/message and layout role only — IMAGE 1 subject must stay recognizable on every slide."
+          : "Each slide varies headline/message and layout role only — keep one consistent campaign art direction across all slides.",
     slide.role === "offer" && !vars.offer?.trim()
       ? "Offer slide: CTA / shop-now mood only — do NOT invent prices, HK$, discount %, or fake promotions."
       : "",
@@ -874,7 +883,7 @@ export function buildCampaignSlideImagePrompt(
           slideIndex,
           totalSlides,
           brandProfile,
-          hasReferenceImage ? "clone" : "none",
+          referenceImageMode,
         )
       : mode === "brand-fit" && brandProfile?.businessName
       ? buildBrandFitImagePrompt(slideVars, brandProfile)

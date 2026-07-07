@@ -177,6 +177,12 @@ export async function POST(request: Request) {
       brandProfile,
       promotionMode,
       hasReferenceLayout: strategy.useDualImage,
+      referenceStrategyKind:
+        strategy.kind === "layout-transfer"
+          ? "layout-transfer"
+          : strategy.kind === "style-only"
+            ? "style-only"
+            : "none",
       promptExtra,
     });
   } catch (e: unknown) {
@@ -222,10 +228,11 @@ export async function POST(request: Request) {
         brandProfile,
         i,
         plan.slides.length,
-        hasProduct,
+        hasProduct || hasStyle,
         {
           visualStyleId: visualStyle,
           referenceConcept: strategy.useReferenceConceptPrompts,
+          referenceImageMode: strategy.referenceImageMode,
         },
       );
 

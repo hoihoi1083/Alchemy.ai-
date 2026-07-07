@@ -52,6 +52,8 @@ export function pickImageUrl(...values: unknown[]): string | undefined {
       }
       const nested = pickString(
         rec.url_size_large,
+        rec.urlSizeLarge,
+        rec.original,
         rec.url_default,
         rec.url,
         rec.urlDefault,

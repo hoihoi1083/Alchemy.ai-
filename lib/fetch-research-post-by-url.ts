@@ -4,7 +4,11 @@ import {
   fetchJustOneApi,
   hasJustOneApiConfigured,
 } from "@/lib/justoneapi-client";
-import { mapRawPlatformPost } from "@/lib/justoneapi-platform-search";
+import {
+  extractXhsNoteFromDetailResponse,
+  mapRawPlatformPost,
+  xhsCoverUrlLooksFetchable,
+} from "@/lib/justoneapi-platform-search";
 import {
   detectPlatformFromPostUrl,
   directPostUrlSupported,
@@ -15,55 +19,67 @@ import {
 } from "@/lib/content-research-post-url";
 import {
   mediaFilterMismatchMessage,
+  postHasImageMedia,
   postMatchesMediaFilter,
 } from "@/lib/content-research-media-filter";
 import type { ContentResearchMediaFilter } from "@/lib/content-research-types";
 
+/** Prefer v1/v4 (signed rednotecdn images). v5 is flaky; v7 often returns dead xhscdn URLs. */
 const XHS_DETAIL_PATHS = [
+  "/api/xiaohongshu/get-note-detail/v1",
+  "/api/xiaohongshu/get-note-detail/v4",
+  "/api/xiaohongshu/get-note-detail/v2",
   "/api/xiaohongshu/get-note-detail/v5",
   "/api/xiaohongshu/get-note-detail/v7",
 ] as const;
 
-function extractXhsNotePayload(body: Record<string, unknown>): Record<string, unknown> | null {
-  const data = asRecord(body.data) ?? body;
-  const note =
-    asRecord(data.note) ??
-    asRecord(data.note_detail) ??
-    asRecord(data.noteDetail) ??
-    asRecord(data.item) ??
-    data;
-  if (!note || Object.keys(note).length === 0) return null;
-  return note;
+function mapXhsDetailNote(
+  note: Record<string, unknown>,
+  noteId: string,
+  canonicalUrl: string,
+  shareType?: string,
+): ContentResearchPost | null {
+  return (
+    mapRawPlatformPost(
+      "xiaohongshu",
+      {
+        note,
+        note_id: noteId,
+        url: canonicalUrl,
+        share_type: shareType,
+      },
+      0,
+    ) ?? mapRawPlatformPost("xiaohongshu", note, 0)
+  );
 }
 
 async function fetchXhsPostByNoteId(noteId: string, canonicalUrl: string): Promise<ContentResearchPost> {
   const shareHints = xhsShareHintsFromUrl(canonicalUrl);
+  const detailParams: Record<string, string> = { noteId };
+  if (canonicalUrl) detailParams.noteUrl = canonicalUrl;
+
   let lastEmpty = false;
+  let fallback: ContentResearchPost | null = null;
 
   for (const path of XHS_DETAIL_PATHS) {
-    const body = await fetchJustOneApi(path, { noteId }, "XHS note detail by URL");
-    const note = extractXhsNotePayload(body);
+    const body = await fetchJustOneApi(path, detailParams, "XHS note detail by URL");
+    const note = extractXhsNoteFromDetailResponse(asRecord(body) ?? {});
     if (!note) {
       lastEmpty = true;
       continue;
     }
 
-    const post =
-      mapRawPlatformPost(
-        "xiaohongshu",
-        {
-          note,
-          note_id: noteId,
-          url: canonicalUrl,
-          share_type: shareHints.shareType,
-        },
-        0,
-      ) ?? mapRawPlatformPost("xiaohongshu", note, 0);
+    const post = mapXhsDetailNote(note, noteId, canonicalUrl, shareHints.shareType);
+    if (!post) continue;
 
-    if (post) {
-      return { ...post, url: post.url || canonicalUrl, platform: "xiaohongshu" };
+    const normalized = { ...post, url: post.url || canonicalUrl, platform: "xiaohongshu" as const };
+    if (postHasImageMedia(normalized) && !fallback) fallback = normalized;
+    if (xhsCoverUrlLooksFetchable(normalized.coverImageUrl)) {
+      return normalized;
     }
   }
+
+  if (fallback) return fallback;
 
   if (lastEmpty) {
     throw new Error(
