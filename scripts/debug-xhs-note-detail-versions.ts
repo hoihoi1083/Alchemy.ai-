@@ -25,7 +25,12 @@ async function main() {
     "/api/xiaohongshu/get-note-detail/v7",
   ];
   for (const path of paths) {
-    for (const params of [{ noteId }, { noteId, url }, { noteId, noteUrl: url }]) {
+    const paramSets: Record<string, string>[] = [
+      { noteId },
+      { noteId, url },
+      { noteId, noteUrl: url },
+    ];
+    for (const params of paramSets) {
       try {
         const body = await fetchJustOneApi(path, params, "debug");
         const note = extractXhsNoteFromDetailResponse(body);
