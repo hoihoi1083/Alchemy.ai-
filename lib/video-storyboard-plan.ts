@@ -8,6 +8,7 @@ import { parseLlmJsonObject } from "@/lib/parse-llm-json";
 import { inferProductSceneCategory } from "@/lib/product-scene-hints";
 import { isStoryboardStructureLabel } from "@/lib/prompt-variables";
 import type { ResearchReelAnalysis } from "@/lib/reel-analysis-types";
+import { pinStoryboardPlanToReelAnalysis } from "@/lib/reel-reference-brief";
 import type { SubjectFraming } from "@/lib/prompt-variables";
 import { VIDEO_BGM_HINT } from "@/lib/templates";
 import type {
@@ -399,7 +400,10 @@ function buildReelStoryboardPlanPrompt(input: {
       ]
     : input.conceptMode
       ? [
-          "- imagePrompt: English text-to-image cinematic still — 9:16, moody concept short. Illustrate the user's message/theme; no real brands, faces from reference, or copied on-video text.",
+          "- visualDirection JSON field: echo Reference visual direction above (render medium, palette, meme/cinematic energy) — locked aesthetic for ALL scenes.",
+          "- theme JSON field: user's campaign message/topic ONLY — never the reference post topic.",
+          "- imagePrompt: English 9:16 still. MATCH reference reel visual style family and layout grammar for this beat; REPLACE hero subject and props with imagery for the USER topic.",
+          "- Do NOT default to generic photorealistic 小红书 lifestyle if reference is cartoon/3D/meme/illustrated.",
         ]
       : [
           "- imagePrompt: English still for Nano Banana edit from user's product photo — 9:16, photorealistic, no readable text.",
@@ -410,7 +414,7 @@ function buildReelStoryboardPlanPrompt(input: {
     : "Plan a VIDEO STORYBOARD that mirrors the REFERENCE REEL structure below, adapted for the user's product.";
 
   const heroLine = input.conceptMode
-    ? "- All hero content = user's headline/concept message — original illustrative scenes, not reference subjects."
+    ? "- Scene CONTENT (what is promoted, on-image copy) = user's headline/concept — reference post topic is irrelevant."
     : "- All hero content = user's product category.";
 
   const seedanceLead = input.conceptMode
@@ -425,7 +429,8 @@ function buildReelStoryboardPlanPrompt(input: {
     "",
     "Rules:",
     "- Map reference shot beats to storyboard scenes in timeline order (hook → demo → payoff/CTA).",
-    "- Match reference pacing, cut rhythm, and camera language — NOT reference faces, brands, or on-video text.",
+    "- Match reference pacing, cut rhythm, camera language, and VISUAL STYLE FAMILY — NOT reference faces, brands, unrelated topics, or on-video text.",
+    "- visualDirection in JSON must describe the REFERENCE reel look (from Reference visual direction above), not a generic stock aesthetic.",
     heroLine,
     input.conceptMode ? "" : `- Product category guess: ${category}.`,
     sceneCountLine,
@@ -450,7 +455,9 @@ function buildReelStoryboardPlanPrompt(input: {
     input.headline ? `Headline: ${input.headline}` : "",
     input.subline ? `Selling points: ${input.subline}` : "",
     input.offer ? `Offer/CTA: ${input.offer}` : "",
-    input.promptExtra ? `Campaign notes: ${input.promptExtra}` : "",
+    input.promptExtra
+      ? `Campaign notes (TOPIC/copy only — do NOT let Visual metaphor override Reference visual direction): ${input.promptExtra}`
+      : "",
     `Target duration: ${input.durationSec}s.`,
     artStylePlannerHint(input.artStyleId),
   ]
@@ -530,9 +537,15 @@ export async function planVideoStoryboardFromReelAnalysis(
     { temperature: 0.45, max_tokens: 4500, jsonObject: true },
   );
 
-  return normalizeStoryboardPlan(
+  const plan = normalizeStoryboardPlan(
     parseLlmJsonObject<Partial<VideoStoryboardPlan>>(outputText, "Reel storyboard plan"),
     durationSec,
     input.sceneCountTarget,
   );
+  const topic =
+    input.headline?.trim() ||
+    input.product ||
+    input.subline?.trim() ||
+    "";
+  return pinStoryboardPlanToReelAnalysis(plan, input.analysis, topic);
 }

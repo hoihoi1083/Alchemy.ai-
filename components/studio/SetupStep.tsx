@@ -8,19 +8,21 @@ import { ArtStylePicker } from "@/components/ArtStylePicker";
 import { TemplateSlotChecklist } from "@/components/TemplateSlotChecklist";
 import { AdvancedPromptPanel } from "@/components/AdvancedPromptPanel";
 import { isSlotRequired, templateHasSlot } from "@/lib/template-slots";
-import { VIDEO_DURATIONS, type VideoDuration } from "@/lib/video-settings";
-import { isBrandVideoStyle, isCreativeVideoStyle, isBrandVisualStyle, isStoryboardVideoStyle, isAiPlannedVideoStyle, visualStylePromptHint } from "@/lib/visual-styles";
+import { VIDEO_DURATIONS, type VideoDuration, type VideoSettings } from "@/lib/video-settings";
+import { isBrandVideoStyle, isCreativeVideoStyle, isBrandVisualStyle, isStoryboardVideoStyle, isUgcPresenterStyle, isAiPlannedVideoStyle, visualStylePromptHint } from "@/lib/visual-styles";
 import { UploadZone } from "@/components/UploadZone";
 import { ReferenceUploadZone } from "@/components/ReferenceUploadZone";
 import { ContentResearchPanel } from "@/components/content-research/ContentResearchPanel";
 import { CINEMATIC_SCENE_COUNTS, type CinematicSceneCount } from "@/lib/cinematic-scene-config";
 import type { UserReferenceBrief } from "@/lib/user-reference-brief";
+import { BrandKitPanel } from "@/components/studio/BrandKitPanel";
+import { ShipItPanel } from "@/components/studio/ShipItPanel";
 import { WizardErrorBanner } from "@/components/studio/WizardErrorBanner";
 import { VideoOutputSourceCard } from "@/components/studio/VideoOutputSourceCard";
 import { isContentResearchStyleExtra } from "@/lib/content-research-promote";
 
 export function SetupStep() {
-  const { advancedSection, analyzeBrand, applyClosestMatchRecipe, applyCinematicStitchRecipe, applyPrimaryPath, applyPrimaryPathConcept, applyPrimaryPathConceptVideo, applyPrimaryPathVideoOnly, applyPromptRebuild, applyQuickTest8sRecipe, artStyleId, brandAnalyzeBusy, brandAnalyzeNote, brandSocialHint, brandWebsiteUrl, business, cinematicSceneCount, conceptIdea, continueSetupLabel, setupNextDisabled, setupNextDisabledReason, creativeVideoBrief, error, formatCinematicCopy, goNextFromSetup, headline, imageCreativeMode, imagePrompt, isContentResearchVideoPath, lockedCampaignMode, m, offer, onCinematicSceneCountChange, onImageInputModeChange, onProductPhotoSelected, onImageCreativeModeChange, onReferenceAdFile, onVideoCreativeModeChange, onWorkflowModeChange, planAiVideoPrompt, product, productPhoto, promotionMode, promptExtra, promptMarket, referenceAd, referenceIsVideo, referencePreviewUrl, researchReelAnalysis, researchReelAnalyzeBusy, researchReelAnalyzeNote, selectVisualStyle, setArtStyleId, setBrandSocialHint, setBrandWebsiteUrl, setBusiness, setCampaignTheme, setConceptIdea, setConceptImageVisionNote, setCreativeVideoBrief, setError, setExtraKitPhotos, setHeadline, setImageAspectRatio, setImageCreativeMode, setImageOutputMode, setImagePrompt, setImageRefPhoto, setOffer, setProduct, setPromptExtra, setPromptMarket, setReferenceCarouselSlideCount, setContentResearchApplyRef, setShowAdvancedSetup, setShowAdvancedSetupPrompts, setStoryboardBrief, setSubjectFraming, setSubline, setUserReferenceBrief, setUseOriginalImage, setVideoPrompt, setVideoSettings, showAdvancedSetup, showAdvancedSetupPrompts, storyboardBrief, subjectFraming, subline, templateId, templateSlotStatus, uploadPreviewUrl, usesCompositor, usesReferenceConceptForImage, videoCreativeMode, videoPrompt, videoSettings, visualStyleId, workflowMode } = useWizard();
+  const { advancedSection, analyzeBrand, applyClosestMatchRecipe, applyCinematicStitchRecipe, applyPrimaryPath, applyPrimaryPathConcept, applyPrimaryPathConceptVideo, applyPrimaryPathVideoOnly, applyPromptRebuild, applyQuickTest8sRecipe, artStyleId, brandAnalyzeBusy, brandAnalyzeNote, brandSocialHint, brandWebsiteUrl, business, cinematicSceneCount, conceptIdea, continueSetupLabel, effectivePromoteName, setupNextDisabled, setupNextDisabledReason, creativeVideoBrief, error, formatCinematicCopy, goNextFromSetup, headline, imageCreativeMode, imagePrompt, isConceptStoryboardOutput, isContentResearchVideoPath, isStoryboardOutput, lockedCampaignMode, m, offer, onCinematicSceneCountChange, onImageInputModeChange, onProductPhotoSelected, onImageCreativeModeChange, onReferenceAdFile, onVideoCreativeModeChange, onWorkflowModeChange, planAiVideoPrompt, product, productPhoto, promotionMode, promptExtra, promptMarket, referenceAd, referenceIsVideo, referencePreviewUrl, researchReelAnalysis, researchReelAnalyzeBusy, researchReelAnalyzeNote, runShipItPipeline, selectVisualStyle, setArtStyleId, setBrandKit, setBrandSocialHint, setBrandWebsiteUrl, setBusiness, setCampaignTheme, setConceptIdea, setConceptImageVisionNote, setCreativeVideoBrief, setError, setExtraKitPhotos, setHeadline, setImageAspectRatio, setImageCreativeMode, setImageOutputMode, setImagePrompt, setImageRefPhoto, setOffer, setProduct, setPromptExtra, setPromptMarket, setReferenceCarouselSlideCount, setContentResearchApplyRef, setShipItMode, setShowAdvancedSetup, setShowAdvancedSetupPrompts, setStoryboardBrief, setSubjectFraming, setSubline, setUserReferenceBrief, setUseOriginalImage, setVideoPrompt, setVideoSettings, shipItEligible, shipItVisionBlocked, shipItMode, shipItPipelineBusy, showAdvancedSetup, showAdvancedSetupPrompts, storyboardBrief, subjectFraming, subline, templateId, templateSlotStatus, uploadPreviewUrl, usesCompositor, usesReferenceConceptForImage, videoCreativeMode, videoPrompt, videoSettings, visualStyleId, workflowMode } = useWizard();
   const isConcept = promotionMode === "concept";
   const isConceptImageOnly = isConcept && workflowMode === "image-only";
   const isConceptVideoOnly = isConcept && workflowMode === "video-only";
@@ -33,6 +35,18 @@ export function SetupStep() {
     (hidePrimaryPathsForResearch && !isConcept);
   const showResearchPathsHint = hidePrimaryPathsForResearch && !isConcept;
   const isVideoOnlyPhysical = !isConcept && workflowMode === "video-only";
+  const isVideoWorkflow = workflowMode === "video-only" || workflowMode === "combined";
+  const setupReferenceVideoOnStep1 =
+    isVideoWorkflow && !usesCompositor && !shipItMode;
+
+  function handleSetupReferenceVideo(file: File | null) {
+    if (file) {
+      onVideoCreativeModeChange("reference-concept");
+      onImageCreativeModeChange("reference-concept");
+      if (isConcept) onImageInputModeChange("reference");
+    }
+    onReferenceAdFile(file);
+  }
   const pathsTitle = isConceptVideoOnly
     ? m.wizard.conceptVideoPathsTitle
     : isConcept
@@ -92,7 +106,7 @@ export function SetupStep() {
     if (nextSubline) setSubline(nextSubline);
     if (nextOffer) setOffer(nextOffer);
     if (conceptExtra) {
-      setPromptExtra((prev) => [prev.trim(), conceptExtra].filter(Boolean).join(" | "));
+      setPromptExtra((prev: string) => [prev.trim(), conceptExtra].filter(Boolean).join(" | "));
     }
     const conceptBrief = [
       conceptIdea.trim(),
@@ -217,6 +231,25 @@ export function SetupStep() {
 
   <WorkflowModePicker value={workflowMode} onChange={onWorkflowModeChange} />
 
+  <ShipItPanel
+    shipItMode={shipItMode}
+    onShipItModeChange={setShipItMode}
+    eligible={shipItEligible && !shipItVisionBlocked}
+    busy={shipItPipelineBusy}
+    onRun={() => void runShipItPipeline()}
+    showRunButton={workflowMode === "combined"}
+    labels={{
+      modeOn: m.wizard.shipItModeOn,
+      modeOff: m.wizard.shipItModeOff,
+      modeHint: m.wizard.shipItModeHint,
+      showExpert: m.wizard.shipItShowExpert,
+      runBtn: m.wizard.shipItRunBtn,
+      running: m.wizard.shipItRunning,
+      unsupported: m.wizard.shipItUnsupported,
+      runHint: m.wizard.shipItRunHint,
+    }}
+  />
+
   {workflowMode !== "image-only" && <VideoOutputSourceCard variant="setup" />}
 
   <details
@@ -260,8 +293,11 @@ export function SetupStep() {
       onReferenceAdFile,
       setError,
     }}
-    onApplied={() => {
-      setContentResearchNote(m.studioAssistant.actionApplied);
+    onApplied={(angle, plan, result) => {
+      setContentResearchNote(result?.message ?? m.studioAssistant.actionApplied);
+      if (result?.refs.videoAttached) {
+        setError(null);
+      }
       setConceptAudience("");
       setConceptPain("");
       setConceptPromise("");
@@ -278,7 +314,10 @@ export function SetupStep() {
   )}
 
   {isContentResearchVideoPath && (
-    <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-xs text-violet-950">
+    <div
+      id="research-reel-setup"
+      className="space-y-3 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3 text-xs text-violet-950"
+    >
       <div>
         <p className="font-semibold text-violet-900">
           {isConcept ? m.wizard.researchReelSetupTitleConcept : m.wizard.researchReelSetupTitle}
@@ -347,23 +386,18 @@ export function SetupStep() {
           />
         </div>
         )}
-        {(!referenceAd || !referenceIsVideo) && (
-          <div className="rounded-xl border border-violet-200 bg-white/90 p-3">
-            <ReferenceUploadZone
-              label={m.wizard.referenceLabel}
-              hint={m.wizard.researchReelUploadMp4Hint}
-              cta={m.wizard.referenceCta}
-              changeLabel={m.wizard.referenceChange}
-              previewUrl={referencePreviewUrl}
-              isVideo={referenceIsVideo}
-              fileName={referenceAd?.name ?? null}
-              onFile={(file) => {
-                if (file) onVideoCreativeModeChange("reference-concept");
-                onReferenceAdFile(file);
-              }}
-            />
-          </div>
-        )}
+        <div className="rounded-xl border border-violet-200 bg-white/90 p-3">
+          <ReferenceUploadZone
+            label={m.wizard.referenceLabel}
+            hint={m.wizard.researchReelUploadMp4Hint}
+            cta={m.wizard.referenceCta}
+            changeLabel={m.wizard.referenceChange}
+            previewUrl={referencePreviewUrl}
+            isVideo={referenceIsVideo}
+            fileName={referenceAd?.name ?? null}
+            onFile={handleSetupReferenceVideo}
+          />
+        </div>
       </div>
       {referencePreviewUrl && referenceIsVideo ? (
         <video
@@ -373,6 +407,44 @@ export function SetupStep() {
           playsInline
           controls
         />
+      ) : null}
+    </div>
+  )}
+
+  {setupReferenceVideoOnStep1 && !isContentResearchVideoPath && (
+    <div
+      id="setup-reference-video"
+      className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-950"
+    >
+      <div>
+        <p className="font-semibold text-emerald-900">{m.wizard.setupReferenceVideoTitle}</p>
+        <p className="mt-1 leading-relaxed text-emerald-800">{m.wizard.setupReferenceVideoIntro}</p>
+      </div>
+      <div className="rounded-xl border border-emerald-200 bg-white/90 p-3">
+        <ReferenceUploadZone
+          label={m.wizard.referenceLabel}
+          hint={m.wizard.setupReferenceVideoHint}
+          cta={m.wizard.referenceCta}
+          changeLabel={m.wizard.referenceChange}
+          previewUrl={referencePreviewUrl}
+          isVideo={referenceIsVideo}
+          fileName={referenceAd?.name ?? null}
+          onFile={handleSetupReferenceVideo}
+        />
+      </div>
+      {referenceAd && referenceIsVideo && (researchReelAnalyzeBusy || researchReelAnalyzeNote) ? (
+        <p className="rounded-lg bg-purple-950/10 px-3 py-2 text-purple-900">
+          {researchReelAnalyzeBusy ? m.wizard.researchReelAnalyzing : researchReelAnalyzeNote}
+        </p>
+      ) : referenceAd && referenceIsVideo && !effectivePromoteName ? (
+        <p className="rounded-lg bg-amber-100 px-3 py-2 text-amber-950">
+          {m.wizard.setupReferenceVideoWaitingCopy}
+        </p>
+      ) : null}
+      {!referenceAd || !referenceIsVideo ? (
+        <p className="text-emerald-800/90">{m.wizard.setupReferenceVideoSkipNote}</p>
+      ) : !isStoryboardOutput ? (
+        <p className="text-emerald-800/90">{m.wizard.setupReferenceVideoNonStoryboardHint}</p>
       ) : null}
     </div>
   )}
@@ -576,6 +648,18 @@ export function SetupStep() {
         >
           <p className="text-sm font-semibold text-slate-900">{m.wizard.pathModelTitle}</p>
           <p className="mt-1 text-xs text-slate-600">{m.wizard.pathModelDesc}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyPrimaryPath("ugc-presenter")}
+          className={`rounded-xl border px-3 py-3 text-left ${
+            visualStyleId === "ugc-presenter"
+              ? "border-rose-400 bg-rose-50"
+              : "border-slate-200 bg-white"
+          }`}
+        >
+          <p className="text-sm font-semibold text-slate-900">{m.wizard.pathUgcPresenterTitle}</p>
+          <p className="mt-1 text-xs text-slate-600">{m.wizard.pathUgcPresenterDesc}</p>
         </button>
         {workflowMode !== "image-only" && (
         <button
@@ -836,10 +920,12 @@ export function SetupStep() {
       {brandAnalyzeNote && (
         <p className="text-xs text-violet-100/90">{brandAnalyzeNote}</p>
       )}
+      <BrandKitPanel onChange={setBrandKit} />
       </div>
     </details>
   )}
 
+  {!shipItMode && (
   <details
     className="rounded-xl border border-slate-200 bg-white p-3"
     open={showAdvancedSetup}
@@ -860,6 +946,16 @@ export function SetupStep() {
       )}
     </div>
   </details>
+  )}
+
+  {!usesCompositor && isUgcPresenterStyle(visualStyleId) && (
+    <div className="space-y-2 rounded-xl border border-rose-900/50 bg-rose-950/25 px-4 py-3">
+      <p className="text-sm font-semibold text-rose-50">
+        {m.wizard.visualStyles["ugc-presenter"].title}
+      </p>
+      <p className="text-xs text-rose-100/90">{m.wizard.ugcPresenter.setupIntro}</p>
+    </div>
+  )}
 
   {!usesCompositor && isStoryboardVideoStyle(visualStyleId) && (
     <div className="space-y-3 rounded-xl border border-teal-900/50 bg-teal-950/25 px-4 py-3">
@@ -888,7 +984,7 @@ export function SetupStep() {
               key={d}
               type="button"
               onClick={() =>
-                setVideoSettings((prev) => ({ ...prev, duration: d as VideoDuration }))
+                setVideoSettings((prev: VideoSettings) => ({ ...prev, duration: d as VideoDuration }))
               }
               className={`rounded-full px-4 py-2 text-sm font-medium ${
                 videoSettings.duration === d
@@ -955,7 +1051,7 @@ export function SetupStep() {
     visualStylePromptHint(visualStyleId) && (
     <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
       <span className="font-medium text-slate-800">{m.wizard.styleAutoAppliedLabel}</span>{" "}
-      {m.wizard.visualStyleHints[visualStyleId]}
+      {m.wizard.visualStyleHints[visualStyleId as keyof typeof m.wizard.visualStyleHints]}
     </p>
   )}
 
@@ -966,7 +1062,7 @@ export function SetupStep() {
     value={promptExtra}
     onChange={(e) => setPromptExtra(e.target.value)}
     placeholder={
-      m.wizard.requirementsPlaceholders[visualStyleId] ??
+      m.wizard.requirementsPlaceholders[visualStyleId as keyof typeof m.wizard.requirementsPlaceholders] ??
       m.wizard.requirementsPlaceholder
     }
     rows={2}
@@ -1079,14 +1175,17 @@ export function SetupStep() {
   <TemplateSlotChecklist
     templateId={templateId}
     filled={templateSlotStatus()}
+    optionalSlotIds={isConceptStoryboardOutput ? ["productPhoto"] : undefined}
     deferredSlotIds={
-      isContentResearchVideoPath
-        ? ["styleRef"]
+      setupReferenceVideoOnStep1
+        ? isContentResearchVideoPath
+          ? ["styleRef"]
+          : ["productPhoto", "styleRef"]
         : ["productPhoto", "styleRef", "referenceVideo"]
     }
   />
 
-  {!usesCompositor && (
+  {!usesCompositor && !shipItMode && (
     <details
       className="rounded-xl border border-slate-200 bg-white p-3"
       open={showAdvancedSetupPrompts}

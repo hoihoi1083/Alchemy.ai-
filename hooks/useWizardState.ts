@@ -1,6 +1,7 @@
-"use client";
-
 import { useState } from "react";
+import type { ImagePostflight } from "@/lib/image-postflight";
+import type { ImageVisionReview } from "@/lib/image-vision-gate";
+import type { ImageUploadWarning } from "@/lib/image-upload-quality";
 import type { BgmTrackId } from "@/lib/bgm/tracks";
 import type { BrandProfile } from "@/lib/brand-profile";
 import type { ProductVideoPlan } from "@/lib/product-video-types";
@@ -21,7 +22,9 @@ import {
   DEFAULT_IMAGE_OUTPUT_MODE,
   type ImageOutputMode,
 } from "@/lib/image-output-mode";
-import type { ImageUploadWarning } from "@/lib/image-upload-quality";
+import type { ImageTextMode } from "@/lib/image-text-mode";
+import type { BrandKit } from "@/lib/brand-kit";
+import { DEFAULT_BRAND_KIT, loadBrandKitFromStorage } from "@/lib/brand-kit";
 import type { PromptMarket, SubjectFraming } from "@/lib/prompts";
 import type { ReferenceClipId } from "@/lib/reference-clips";
 import type { TemplateId } from "@/lib/templates";
@@ -60,6 +63,8 @@ import type { UserReferenceBrief } from "@/lib/user-reference-brief";
 import type { ContentResearchApplyRef } from "@/lib/content-research-apply";
 
 export type MusicSource = "library" | "ai";
+
+export type PresenterSourceMode = "custom-keyframe" | "stock-avatar";
 
 export type StoryboardDurationPreset = "4" | "6" | "8" | "10" | "12";
 
@@ -164,6 +169,16 @@ export function useWizardState(locale: "en" | "zh" | "zh-cn") {
   const [campaignSlides, setCampaignSlides] = useState<CampaignSlide[]>([]);
   const [uploadQualityWarning, setUploadQualityWarning] = useState<ImageUploadWarning | null>(null);
   const [useOriginalImage, setUseOriginalImage] = useState(false);
+  const [shipItMode, setShipItMode] = useState(true);
+  const [shipItPipelineBusy, setShipItPipelineBusy] = useState(false);
+  const [imagePostflight, setImagePostflight] = useState<ImagePostflight | null>(null);
+  const [imagePostflightBusy, setImagePostflightBusy] = useState(false);
+  const [imageVisionReview, setImageVisionReview] = useState<ImageVisionReview | null>(null);
+  const [imageVisionReviewBusy, setImageVisionReviewBusy] = useState(false);
+  const [imageQualityChecklist, setImageQualityChecklist] = useState({
+    productReadable: false,
+    textLegible: false,
+  });
 
   const [referenceAd, setReferenceAd] = useState<File | null>(null);
   const [referencePreviewUrl, setReferencePreviewUrl] = useState<string | null>(null);
@@ -207,6 +222,17 @@ export function useWizardState(locale: "en" | "zh" | "zh-cn") {
   const [quickFixLogoPlacement, setQuickFixLogoPlacement] = useState<
     "bottom-right" | "bottom-left" | "top-right" | "top-left" | "center" | "replace"
   >("bottom-right");
+  const [imagePreOverlayUrl, setImagePreOverlayUrl] = useState<string | null>(null);
+  const [imageTextMode, setImageTextMode] = useState<ImageTextMode>("integrated");
+  const [presenterSourceMode, setPresenterSourceMode] =
+    useState<PresenterSourceMode>("custom-keyframe");
+  const [presenterAvatarId, setPresenterAvatarId] = useState(
+    "Annie Office Sitting Front",
+  );
+  const [selectedAdPackHookIndex, setSelectedAdPackHookIndex] = useState(0);
+  const [brandKit, setBrandKit] = useState<BrandKit>(() =>
+    typeof window !== "undefined" ? loadBrandKitFromStorage() : DEFAULT_BRAND_KIT,
+  );
 
   const [adPackPlan, setAdPackPlan] = useState<AdPackPlan | null>(null);
   const [adPackPlanBusy, setAdPackPlanBusy] = useState(false);
@@ -362,6 +388,20 @@ export function useWizardState(locale: "en" | "zh" | "zh-cn") {
     setUploadQualityWarning,
     useOriginalImage,
     setUseOriginalImage,
+    shipItMode,
+    setShipItMode,
+    shipItPipelineBusy,
+    setShipItPipelineBusy,
+    imagePostflight,
+    setImagePostflight,
+    imagePostflightBusy,
+    setImagePostflightBusy,
+    imageVisionReview,
+    setImageVisionReview,
+    imageVisionReviewBusy,
+    setImageVisionReviewBusy,
+    imageQualityChecklist,
+    setImageQualityChecklist,
     referenceAd,
     setReferenceAd,
     referencePreviewUrl,
@@ -432,6 +472,18 @@ export function useWizardState(locale: "en" | "zh" | "zh-cn") {
     setQuickFixLogoPreviewUrl,
     quickFixLogoPlacement,
     setQuickFixLogoPlacement,
+    imagePreOverlayUrl,
+    setImagePreOverlayUrl,
+    imageTextMode,
+    setImageTextMode,
+    presenterSourceMode,
+    setPresenterSourceMode,
+    presenterAvatarId,
+    setPresenterAvatarId,
+    selectedAdPackHookIndex,
+    setSelectedAdPackHookIndex,
+    brandKit,
+    setBrandKit,
     adPackPlan,
     setAdPackPlan,
     adPackPlanBusy,

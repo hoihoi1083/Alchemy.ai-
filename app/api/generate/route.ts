@@ -1,12 +1,24 @@
-import { fal, ApiError } from "@fal-ai/client";
+import { fal, ApiError, ValidationError } from "@fal-ai/client";
 import { NextResponse } from "next/server";
 import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import {
   isSeedanceSensitiveError,
   softenSeedancePromptForModeration,
 } from "@/lib/seedance-moderation";
+import { mirrorImageUrlToFalStorage } from "@/lib/fal-mirror-media";
 
 function formatFalError(e: unknown): string {
+  if (e instanceof ValidationError) {
+    const fieldMsgs = e.fieldErrors
+      .map((f) => {
+        const loc = f.loc?.length ? f.loc.join(".") : "body";
+        return `${loc}: ${f.msg}`;
+      })
+      .filter(Boolean);
+    const bits = fieldMsgs.length ? fieldMsgs : [e.message];
+    if (e.requestId) bits.push(`fal request: ${e.requestId}`);
+    return bits.join(" — ");
+  }
   if (e instanceof ApiError) {
     const bits: string[] = [e.message];
     const body = e.body as Record<string, unknown> | undefined;
@@ -115,6 +127,11 @@ function parseDuration(v: string): "auto" | number {
   const n = parseInt(v, 10);
   if (Number.isNaN(n) || n < 2 || n > 15) return "auto";
   return n;
+}
+
+/** Seedance OpenAPI expects duration enum strings ("4"…"15"), not integers. */
+function durationForFal(duration: "auto" | number): string {
+  return duration === "auto" ? "auto" : String(duration);
 }
 
 function hasReferenceTag(prompt: string, kind: "Image" | "Video" | "Audio", index: number): boolean {
@@ -256,22 +273,7 @@ export async function POST(request: Request) {
       avoidOnScreenText,
     }),
     resolution,
-    duration: duration as
-      | "auto"
-      | 2
-      | 3
-      | 4
-      | 5
-      | 6
-      | 7
-      | 8
-      | 9
-      | 10
-      | 11
-      | 12
-      | 13
-      | 14
-      | 15,
+    duration: durationForFal(duration),
     aspect_ratio: aspectRatio as
       | "auto"
       | "21:9"
@@ -317,13 +319,17 @@ export async function POST(request: Request) {
         );
       }
       const imageUrl =
-        start && start.size > 0 ? await fal.storage.upload(start) : startUrl!;
+        start && start.size > 0
+          ? await fal.storage.upload(start)
+          : await mirrorImageUrlToFalStorage(startUrl!);
       const end = formData.get("image_end") as File | null;
       const endDirectUrl = (formData.get("image_end_url") as string | null)?.trim();
       const endUrl =
         end && end.size > 0
           ? await fal.storage.upload(end)
-          : endDirectUrl || undefined;
+          : endDirectUrl
+            ? await mirrorImageUrlToFalStorage(endDirectUrl)
+            : undefined;
 
       const imageInput = {
         ...common,
@@ -489,7 +495,11 @@ export async function POST(request: Request) {
           : {}),
     });
   } catch (e: unknown) {
-    console.error("[api/generate]", e);
+    if (e instanceof ValidationError) {
+      console.error("[api/generate] validation", JSON.stringify(e.fieldErrors));
+    } else {
+      console.error("[api/generate]", e);
+    }
     const message = formatFalError(e);
     if (isSeedanceSensitiveError(message)) {
       return NextResponse.json(

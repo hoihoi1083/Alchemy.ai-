@@ -10,7 +10,7 @@ describe("wizard setup → image gate", () => {
     promotionMode: "concept" as const,
     workflowMode: "image-only" as const,
     promptExtra:
-      "Style reference (小紅書). Borrow ONLY: layout rhythm. Do NOT copy reference subject matter, zodiac/星座/時事/其他品牌, or on-image text from the reference",
+      "Style reference (小紅書). MATCH reference visual style. REPLACE with user campaign. Do NOT copy: reference post title",
     effectivePromoteName: "男生戴水晶",
     hasReferenceImage: true,
     referenceAnalyzeBusy: false,
@@ -53,6 +53,43 @@ describe("wizard setup → image gate", () => {
 
   it("allows ready concept research image path", () => {
     assert.equal(evaluateProceedToImageGate(base), null);
+  });
+
+  it("concept storyboard requires headline, not product name", () => {
+    assert.equal(
+      evaluateProceedToImageGate({
+        ...base,
+        workflowMode: "combined",
+        isStoryboardOutput: true,
+        effectivePromoteName: "",
+        headline: "",
+      }),
+      "need_headline",
+    );
+    assert.equal(
+      evaluateProceedToImageGate({
+        ...base,
+        workflowMode: "combined",
+        isStoryboardOutput: true,
+        effectivePromoteName: "花小錢也能爽玩首爾",
+        headline: "花小錢也能爽玩首爾",
+      }),
+      null,
+    );
+  });
+
+  it("physical storyboard requires product name on setup", () => {
+    assert.equal(
+      evaluateProceedToImageGate({
+        ...base,
+        promotionMode: "physical",
+        workflowMode: "combined",
+        isStoryboardOutput: true,
+        effectivePromoteName: "",
+        headline: "",
+      }),
+      "need_product_name",
+    );
   });
 
   it("allows physical reference-concept without product photo on setup (upload on image step)", () => {

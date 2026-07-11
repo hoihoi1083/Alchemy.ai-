@@ -52,25 +52,27 @@ export async function applyResearchPostReferences(
     input.imageUrls ??
     (input.coverUrl ? [input.coverUrl] : undefined);
 
-  if (urls?.length) {
-    wizard.setImageCreativeMode("reference-concept");
-    if (input.promotionMode === "concept" && wizard.onImageInputModeChange) {
-      wizard.onImageInputModeChange("reference");
-    }
-    if (input.carouselSlideCount && wizard.setReferenceCarouselSlideCount) {
-      wizard.setReferenceCarouselSlideCount(input.carouselSlideCount);
-    }
+  async function attachCoverImages(): Promise<void> {
+    if (!urls?.length) return;
     const files = await deps.fetchResearchImagesAsFiles(urls, input.platform);
     if (files[0]) {
+      wizard.setImageCreativeMode("reference-concept");
+      if (input.promotionMode === "concept" && wizard.onImageInputModeChange) {
+        wizard.onImageInputModeChange("reference");
+      }
+      if (input.carouselSlideCount && wizard.setReferenceCarouselSlideCount) {
+        wizard.setReferenceCarouselSlideCount(input.carouselSlideCount);
+      }
       wizard.setImageRefPhoto(files[0]);
       coverAttached = true;
-    }
-    if (files.length > 1 && wizard.setExtraKitPhotos) {
-      wizard.setExtraKitPhotos(files.slice(1));
+      if (files.length > 1 && wizard.setExtraKitPhotos) {
+        wizard.setExtraKitPhotos(files.slice(1));
+      }
     }
   }
 
   if (!input.loadVideo) {
+    await attachCoverImages();
     return { coverAttached, videoRequested: false, videoAttached: false };
   }
 
@@ -86,6 +88,7 @@ export async function applyResearchPostReferences(
   }
 
   if (!videoUrl) {
+    await attachCoverImages();
     return {
       coverAttached,
       videoRequested: true,
@@ -95,11 +98,15 @@ export async function applyResearchPostReferences(
   }
 
   wizard.onVideoCreativeModeChange("reference-concept");
-  const videoFile = await deps.fetchResearchVideoAsFile(
-    videoUrl,
-    input.platform,
-    `${input.platform}-reference.mp4`,
-  );
+  const [videoFile] = await Promise.all([
+    deps.fetchResearchVideoAsFile(
+      videoUrl,
+      input.platform,
+      `${input.platform}-reference.mp4`,
+    ),
+    attachCoverImages(),
+  ]);
+
   if (!videoFile) {
     return {
       coverAttached,

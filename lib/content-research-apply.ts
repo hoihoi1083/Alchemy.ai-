@@ -21,11 +21,17 @@ import {
   formatLabelForAngleFormat,
   inferWizardFromPost,
   isImageCarouselAngle,
+  resolveFormatForAngleApply,
   wantsResearchVideoReference,
 } from "@/lib/content-research-infer";
 import type { ImageInputMode } from "@/lib/image-input-mode";
 import type { VisualStyleId } from "@/lib/visual-styles";
 import type { WorkflowMode } from "@/lib/workflow-mode";
+import { resolveReelResearchRouting } from "@/lib/content-research-reel-routing";
+import {
+  DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT,
+  MAX_TEACHING_CAROUSEL_SLIDE_COUNT,
+} from "@/lib/teaching-carousel-types";
 
 function postFromAngle(
   angle: ContentAngleCandidate,
@@ -56,6 +62,7 @@ function patchFromAngleFormat(
   format: ContentAngleCandidate["format"],
   promotionMode: "physical" | "concept",
   imageCount: number,
+  userWorkflowMode?: WorkflowMode,
 ): Pick<
   ContentAngleWizardPatch,
   "imageOutputMode" | "visualStyleId" | "workflowMode" | "campaignTheme"
@@ -76,9 +83,13 @@ function patchFromAngleFormat(
       workflowMode = "image-only";
       break;
     case "reel":
-      workflowMode = "video-only";
-      visualStyleId = "storyboard-video";
       imageOutputMode = "single";
+      visualStyleId = resolveReelResearchRouting(
+        promotionMode,
+        userWorkflowMode ?? "video-only",
+      ).visualStyleId;
+      // Keep the workflow the user already picked in the studio (combined vs video-only).
+      workflowMode = undefined;
       break;
     case "model-wear":
       visualStyleId = "model-wear";
@@ -106,6 +117,7 @@ function wizardPatchForAngle(
   plan: ContentResearchPlan,
   promotionMode: "physical" | "concept",
   promoteProduct?: string,
+  userWorkflowMode?: WorkflowMode,
 ): ContentAngleWizardPatch & { carouselSlideCount?: number; referenceNote?: string } {
   const pinnedReference = isReferenceSourcedAngle(angle);
   const productName = pinnedReference
@@ -121,13 +133,8 @@ function wizardPatchForAngle(
       angle.format === "reel" ||
       angle.id.startsWith("post-"));
 
-  const format =
-    angle.format === "campaign" || angle.format === "reel"
-      ? angle.format
-      : usePostInference && inferred
-        ? inferred.format
-        : angle.format;
-  const formatFields = patchFromAngleFormat(format, promotionMode, imageCount);
+  const format = resolveFormatForAngleApply(angle, inferred);
+  const formatFields = patchFromAngleFormat(format, promotionMode, imageCount, userWorkflowMode);
 
   const copy = copyFieldsFromAngle(angle, productName, plan.topic, {
     promotionMode,
@@ -139,7 +146,7 @@ function wizardPatchForAngle(
     conceptIdea: "",
     searchTopic: plan.topic,
   });
-  let promptExtra = styleReferencePromptBlock(
+  const promptExtra = styleReferencePromptBlock(
     angle,
     plan,
     promoteTarget,
@@ -164,14 +171,25 @@ function wizardPatchForAngle(
     promptExtra,
     imageOutputMode: formatFields.imageOutputMode,
     visualStyleId: formatFields.visualStyleId ?? inferred?.visualStyleId,
-    workflowMode: formatFields.workflowMode ?? inferred?.workflowMode,
+    workflowMode:
+      format === "reel" ? userWorkflowMode : formatFields.workflowMode ?? inferred?.workflowMode,
     imageAspectRatio: inferred?.imageAspectRatio ?? aspectForPlatform(plan.platform),
     campaignTheme:
       angle.format === "campaign" || format === "campaign"
         ? `${productName} series`
         : undefined,
-    carouselSlideCount: inferred?.carouselSlideCount,
+    carouselSlideCount:
+      format === "teaching-carousel"
+        ? Math.min(
+            MAX_TEACHING_CAROUSEL_SLIDE_COUNT,
+            Math.max(
+              DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT,
+              imageCount || DEFAULT_TEACHING_CAROUSEL_SLIDE_COUNT,
+            ),
+          )
+        : inferred?.carouselSlideCount,
     referenceNote: inferred?.referenceNote,
+    resolvedFormat: format,
   };
 }
 
@@ -185,8 +203,9 @@ export function buildContentAngleHandoff(
   plan: ContentResearchPlan,
   promotionMode: "physical" | "concept",
   promoteProduct?: string,
+  userWorkflowMode?: WorkflowMode,
 ): StudioAssistantHandoff {
-  const patch = wizardPatchForAngle(angle, plan, promotionMode, promoteProduct);
+  const patch = wizardPatchForAngle(angle, plan, promotionMode, promoteProduct, userWorkflowMode);
   const referenceSourced = isReferenceSourcedAngle(angle);
   const imageUrls =
     angle.sourceImageUrls ??
@@ -203,13 +222,15 @@ export function buildContentAngleHandoff(
     promptExtra: patch.promptExtra,
     imageOutputMode: patch.imageOutputMode,
     visualStyleId: patch.visualStyleId,
-    workflowMode: patch.workflowMode,
+    workflowMode:
+      patch.resolvedFormat === "reel" ? userWorkflowMode ?? "video-only" : patch.workflowMode,
     imageAspectRatio: patch.imageAspectRatio,
     campaignTheme: patch.campaignTheme,
     assistantNote: "content-angle",
     referencePostCoverUrl: imageUrls?.[0] ?? angle.sourceCoverImageUrl,
     referencePostImageUrls: imageUrls,
-    referencePostVideoUrl: angle.sourceVideoUrl,
+    referencePostVideoUrl:
+      patch.resolvedFormat === "reel" ? angle.sourceVideoUrl : undefined,
     referencePostId: angle.id.replace(/^post-/, ""),
     referencePostUrl: angle.sourceUrl,
     referencePostTitle: angle.sourceTitle,
@@ -269,8 +290,9 @@ export async function applyContentAngleToWizard(
   wizard: ContentAngleWizardApi,
   promoteProduct?: string,
   refDeps?: ResearchRefDeps,
+  userWorkflowMode?: WorkflowMode,
 ): Promise<ContentAngleApplyResult & { researchRef?: ContentResearchApplyRef }> {
-  const patch = wizardPatchForAngle(angle, plan, promotionMode, promoteProduct);
+  const patch = wizardPatchForAngle(angle, plan, promotionMode, promoteProduct, userWorkflowMode);
   const imageUrls =
     angle.sourceImageUrls ??
     (angle.sourceCoverImageUrl ? [angle.sourceCoverImageUrl] : undefined);
@@ -285,15 +307,15 @@ export async function applyContentAngleToWizard(
     const withoutPriorResearch = stripContentResearchStyleExtra(prev);
     return [withoutPriorResearch.trim(), patch.promptExtra].filter(Boolean).join(" | ");
   });
+  if (patch.workflowMode && wizard.onWorkflowModeChange && patch.resolvedFormat !== "reel") {
+    wizard.onWorkflowModeChange(patch.workflowMode);
+  }
   wizard.setImageOutputMode(patch.imageOutputMode);
   if (patch.imageAspectRatio && wizard.setImageAspectRatio) {
     wizard.setImageAspectRatio(patch.imageAspectRatio);
   }
   if (patch.campaignTheme && wizard.setCampaignTheme) {
     wizard.setCampaignTheme(patch.campaignTheme);
-  }
-  if (patch.workflowMode && wizard.onWorkflowModeChange) {
-    wizard.onWorkflowModeChange(patch.workflowMode);
   }
   if (patch.visualStyleId && wizard.selectVisualStyle) {
     wizard.selectVisualStyle(patch.visualStyleId);
@@ -304,10 +326,14 @@ export async function applyContentAngleToWizard(
   wizard.setContentResearchApplyRef?.({ angle, plan });
 
   const loadVideo = wantsResearchVideoReference(
-    angle.format,
+    patch.resolvedFormat ?? angle.format,
     imageCount,
     angle.sourceVideoUrl,
   );
+
+  if (!loadVideo) {
+    wizard.onReferenceAdFile?.(null);
+  }
 
   let refs: ResearchRefAttachResult = {
     coverAttached: false,

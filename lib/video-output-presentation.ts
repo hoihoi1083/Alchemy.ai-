@@ -8,12 +8,14 @@ export type VideoOutputPresentationId =
   | "reference-motion"
   | "text-reel"
   | "product-assistant"
-  | "cinematic-reel";
+  | "cinematic-reel"
+  | "digital-presenter";
 
 export type ResolveVideoOutputPresentationInput = {
   workflowMode: WorkflowMode;
   usesCompositor: boolean;
   isStoryboardOutput: boolean;
+  isUgcPresenterOutput: boolean;
   shouldCinematicStitch: boolean;
   isConceptCinematicSingleOutput: boolean;
   usesProductAssistant: boolean;
@@ -29,6 +31,7 @@ export function resolveVideoOutputPresentation(
   if (input.workflowMode === "image-only") return null;
   if (input.usesCompositor) return "animate-keyframe";
   if (input.isStoryboardOutput) return "storyboard-reel";
+  if (input.isUgcPresenterOutput) return "digital-presenter";
   if (input.shouldCinematicStitch || input.isConceptCinematicSingleOutput) {
     return "cinematic-reel";
   }
@@ -48,6 +51,7 @@ export function resolveVideoOutputPresentation(
 export function isVideoOutputPathLocked(id: VideoOutputPresentationId): boolean {
   return (
     id === "storyboard-reel" ||
+    id === "digital-presenter" ||
     id === "cinematic-reel" ||
     id === "product-assistant" ||
     id === "text-reel"

@@ -1,3 +1,5 @@
+import { referenceStyleTransferPromptBlock } from "@/lib/reference-style-transfer";
+
 /** One sampled frame from a reference reel (timeline order). */
 export type ReelShotFrame = {
   index: number;
@@ -35,7 +37,10 @@ export function researchReelAnalysisPromptBlock(analysis: ResearchReelAnalysis):
     analysis.visualDirection ? `Visual direction: ${analysis.visualDirection}` : "",
     analysis.motionSummary ? `Motion/pacing: ${analysis.motionSummary}` : "",
     shotLines,
-    "Adapt shot structure and pacing for the user's product — do NOT copy reference subjects, faces, or on-video text.",
+    referenceStyleTransferPromptBlock({
+      visualDirection: analysis.visualDirection,
+      motionSummary: analysis.motionSummary,
+    }),
   ]
     .filter(Boolean)
     .join(" ");

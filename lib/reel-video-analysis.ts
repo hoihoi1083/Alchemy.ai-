@@ -130,9 +130,9 @@ function buildDeepSeekAdaptPrompt(input: {
     "- Frames above span the FULL source timeline — use the whole story arc (hook, product demo, payoff/CTA), not only the first seconds.",
     "- seedancePrompt: English for Seedance R2V. The OUTPUT must feel like a COMPLETE standalone ad in the target duration — clear opening hook, product hero moment, and satisfying close (even if subtle).",
     "- Compress the reference's narrative arc into the output duration; do NOT produce a fragment that feels like it cuts off mid-intro.",
-    "- Match reference pacing, cut rhythm, and camera language — NOT reference faces, brands, or unrelated topics.",
-    "- All hero content = user's product.",
-    "- productionNotesZh: brief note in 繁體中文 for HK user.",
+    "- Match reference pacing, cut rhythm, camera language, and VISUAL STYLE FAMILY (render medium, palette, meme/cinematic energy) — NOT reference faces, brands, unrelated topics, or on-video text.",
+    "- All hero CONTENT = user's product/topic — keep reference LOOK and edit grammar.",
+    "- If the reference is tutorial, how-to, authenticity test, or educational demo: do NOT copy literal test steps or props (flashlight, fire, tools). Repurpose the same edit energy and visual style as a showcase starring the user's product/topic.",
     refNote,
     `- OUTPUT length: ${input.outputDurationSec}s (Seedance). Map the full reference story into this short ad.`,
     "",
@@ -203,6 +203,8 @@ export type AnalyzeResearchReelResult = {
   referenceDigestMontage: boolean;
   sourceDurationSec: number;
   referenceDurationSec: number;
+  /** First extracted MP4 frame — better style ref than search-list cover. */
+  styleReferenceFrameUrl?: string;
 };
 
 export async function analyzeResearchReelFromVideo(
@@ -281,6 +283,7 @@ export async function analyzeResearchReelFromVideo(
       referenceDigestMontage: clip.digestMontage,
       sourceDurationSec,
       referenceDurationSec: clip.durationSec,
+      styleReferenceFrameUrl: frameUrls[0],
     };
   } finally {
     await rm(workDir, { recursive: true, force: true });

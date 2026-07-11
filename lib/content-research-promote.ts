@@ -4,6 +4,11 @@ import type {
   ContentResearchPlan,
 } from "@/lib/content-research-types";
 import type { PromotionMode } from "@/lib/promotion-mode";
+import {
+  REFERENCE_CONTENT_REPLACE_LINE,
+  REFERENCE_STYLE_MATCH_LINE,
+  REFERENCE_TOPIC_GUARD_LINE,
+} from "@/lib/reference-style-transfer";
 
 /** Marker in promptExtra when angle came from platform content research (style-only). */
 export const CONTENT_RESEARCH_STYLE_PREFIX = "Style reference (";
@@ -11,7 +16,8 @@ export const CONTENT_RESEARCH_STYLE_PREFIX = "Style reference (";
 export function isContentResearchStyleExtra(extra: string | undefined): boolean {
   return Boolean(
     extra?.includes(CONTENT_RESEARCH_STYLE_PREFIX) &&
-      extra.includes("Do NOT copy reference subject matter"),
+      (extra.includes(REFERENCE_STYLE_MATCH_LINE) ||
+        extra.includes("Do NOT copy reference subject matter")),
   );
 }
 
@@ -187,11 +193,12 @@ export function styleReferencePromptBlock(
   const parts = [
     `Style reference (${plan.platformLabel})`,
     angle.sourceUrl ? `Visual source: ${angle.sourceUrl}` : "",
-    refTitle ? `Reference post title (do NOT copy its topic): "${refTitle}"` : "",
+    refTitle ? `Reference post title (style inspiration only — do NOT copy its topic): "${refTitle}"` : "",
     imageCount > 1 ? `${imageCount}-slide carousel pacing` : "",
-    `Borrow ONLY: layout rhythm, palette, typography mood, hook structure, slide roles`,
-    `Do NOT copy reference subject matter, zodiac/星座/時事/其他品牌, or on-image text from the reference`,
-    categoryTopic ? `Search category (layout inspiration only): ${categoryTopic}` : "",
+    REFERENCE_STYLE_MATCH_LINE,
+    REFERENCE_CONTENT_REPLACE_LINE,
+    `${REFERENCE_TOPIC_GUARD_LINE}, zodiac/星座/時事/其他品牌 hooks`,
+    categoryTopic ? `User search category (content lane only): ${categoryTopic}` : "",
     promoteLine,
     referenceNote,
   ];
@@ -243,6 +250,6 @@ export function researchProductPromptLines(
     `Search keyword (find viral posts in this category only): ${t}`,
     `PRODUCT TO PROMOTE — every hook, slide, and CTA must be about THIS, not the reference post topic: ${p}`,
     "- hook/scriptOutline: borrow reference FORMAT and slide structure only; write copy for the product above",
-    "- Never paste reference subject matter (星座/水瓶座/其他品牌/无关话题) into hooks or scripts",
+    "- Never paste reference TOPIC (星座/水瓶座/其他品牌/无关话题) into hooks or scripts — but DO match reference visual style",
   ];
 }

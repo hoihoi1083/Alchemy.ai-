@@ -2,6 +2,7 @@ import { ApiError, fal } from "@fal-ai/client";
 import { NextResponse } from "next/server";
 import { requireAppUser, trackUsage } from "@/lib/require-app-user";
 import type { BrandProfile } from "@/lib/brand-profile";
+import { parseBrandKit } from "@/lib/brand-kit";
 import { defaultEditEndpoint, defaultTextEndpoint } from "@/lib/image-endpoints";
 import {
   buildPromptVariables,
@@ -20,6 +21,9 @@ import {
 } from "@/lib/reference-strategy";
 import { isPromotionMode } from "@/lib/promotion-mode";
 import { wizardPromoteName } from "@/lib/wizard-promote-name";
+import { RESEARCH_REEL_ANALYSIS_MARKER } from "@/lib/reel-analysis-types";
+import type { ResearchReelAnalysis } from "@/lib/reel-analysis-types";
+import { pinStoryboardPlanToReelAnalysis } from "@/lib/reel-reference-brief";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -93,9 +97,11 @@ export async function POST(request: Request) {
   const promotionModeRaw = String(formData.get("promotion_mode") ?? "").trim();
   const promotionMode = isPromotionMode(promotionModeRaw) ? promotionModeRaw : "physical";
   const planRawEarly = (formData.get("storyboard_plan") as string | null)?.trim();
+  const reelAnalysisRaw = (formData.get("research_reel_analysis") as string | null)?.trim();
+  const conceptStoryboardNoProduct = promotionMode === "concept";
   const conceptTextOnlyStoryboard =
-    promotionMode === "concept" && Boolean(planRawEarly) && !hasProduct;
-  if (!hasProduct && !conceptTextOnlyStoryboard) {
+    conceptStoryboardNoProduct && !hasProduct && !hasStyle;
+  if (!hasProduct && !conceptStoryboardNoProduct) {
     return NextResponse.json(
       { error: "Upload a product photo for storyboard generation." },
       { status: 400 },
@@ -114,6 +120,15 @@ export async function POST(request: Request) {
       brandProfile = JSON.parse(brandProfileRaw) as BrandProfile;
     } catch {
       return NextResponse.json({ error: "Invalid brand profile data." }, { status: 400 });
+    }
+  }
+  const brandKitRaw = (formData.get("brand_kit") as string | null)?.trim() || "";
+  let brandKit = null;
+  if (brandKitRaw) {
+    try {
+      brandKit = parseBrandKit(JSON.parse(brandKitRaw));
+    } catch {
+      return NextResponse.json({ error: "Invalid brand kit data." }, { status: 400 });
     }
   }
 
@@ -148,6 +163,8 @@ export async function POST(request: Request) {
   const promptExtraRaw = (formData.get("prompt_extra") as string | null)?.trim() || "";
   const strategyBlock = brief ? referenceStrategyPromptBlock(brief, strategy) : "";
   const promptExtra = [promptExtraRaw, strategyBlock].filter(Boolean).join(" | ");
+  const hasReelAnalysis =
+    Boolean(reelAnalysisRaw) || promptExtra.includes(RESEARCH_REEL_ANALYSIS_MARKER);
   const durationSec = parseDurationSec(
     (formData.get("duration") as string | null)?.trim() || "8",
   );
@@ -160,7 +177,7 @@ export async function POST(request: Request) {
   );
   const endpoint =
     (formData.get("endpoint") as string | null)?.trim() ||
-    (conceptTextOnlyStoryboard || !strategy.sendPixelsToFal
+    (conceptTextOnlyStoryboard || (!strategy.sendPixelsToFal && !hasStyle)
       ? defaultTextEndpoint()
       : defaultEditEndpoint());
   const artStyleId = resolveArtStyleId((formData.get("art_style") as string | null)?.trim());
@@ -218,14 +235,38 @@ export async function POST(request: Request) {
     }
   }
 
+  if (hasReelAnalysis && reelAnalysisRaw) {
+    try {
+      const reelAnalysis = JSON.parse(reelAnalysisRaw) as ResearchReelAnalysis;
+      plan = pinStoryboardPlanToReelAnalysis(
+        plan,
+        reelAnalysis,
+        headline || conceptIdea || productName,
+      );
+    } catch {
+      /* keep unpinned plan */
+    }
+  } else if (hasReelAnalysis && promptExtra.includes(RESEARCH_REEL_ANALYSIS_MARKER)) {
+    /* marker-only path: plan should already be pinned client-side */
+  }
+
   try {
     let imageUrlsForFal: string[] | null = null;
-    if (strategy.sendPixelsToFal && hasProduct && !conceptTextOnlyStoryboard) {
+    const storyboardStyleRef =
+      (strategy.kind === "style-only" || hasReelAnalysis) &&
+      hasStyle &&
+      !conceptTextOnlyStoryboard;
+    if (
+      (strategy.sendPixelsToFal || storyboardStyleRef) &&
+      !conceptTextOnlyStoryboard
+    ) {
       imageUrlsForFal = [];
-      if (strategy.useDualImage && dualImage && hasStyle) {
+      if (strategy.useDualImage && dualImage && hasStyle && hasProduct) {
         imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
         imageUrlsForFal.push(await fal.storage.upload(reference as File));
-      } else {
+      } else if (hasStyle) {
+        imageUrlsForFal.push(await fal.storage.upload(styleRef as File));
+      } else if (hasProduct) {
         imageUrlsForFal.push(await fal.storage.upload(reference as File));
       }
     }
@@ -236,8 +277,10 @@ export async function POST(request: Request) {
       const prompt = buildStoryboardSceneImagePrompt(scene, plan, vars, {
         referenceConcept: strategy.useReferenceConceptPrompts && !conceptTextOnlyStoryboard,
         conceptTextOnly: conceptTextOnlyStoryboard,
+        storyboardStyleRef,
         visualStyleId: visualStyle,
         brandProfile,
+        brandKit,
       });
 
       const result = await fal.subscribe(endpoint, {

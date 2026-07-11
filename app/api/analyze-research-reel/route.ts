@@ -106,6 +106,7 @@ export async function POST(request: Request) {
       referenceDigestMontage: result.referenceDigestMontage,
       sourceDurationSec: result.sourceDurationSec,
       referenceDurationSec: result.referenceDurationSec,
+      styleReferenceFrameUrl: result.styleReferenceFrameUrl ?? null,
       promptBlock: researchReelAnalysisPromptBlock(result.analysis),
     });
   } catch (e: unknown) {

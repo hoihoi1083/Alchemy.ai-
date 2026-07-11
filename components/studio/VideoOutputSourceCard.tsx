@@ -15,6 +15,7 @@ const ICONS: Record<VideoOutputPresentationId, string> = {
   "text-reel": "✍️→🎬",
   "product-assistant": "🤖",
   "cinematic-reel": "🎥",
+  "digital-presenter": "🎙️",
 };
 
 type Variant = "setup" | "image" | "video";
@@ -32,6 +33,7 @@ export function VideoOutputSourceCard({ variant, className = "" }: Props) {
     workflowMode: w.workflowMode,
     usesCompositor: w.usesCompositor,
     isStoryboardOutput: w.isStoryboardOutput,
+    isUgcPresenterOutput: w.isUgcPresenterOutput,
     shouldCinematicStitch:
       w.isCinematicStitchOutput ||
       (w.cinematicSceneCount > 1 && w.cinematicScenes.length >= w.cinematicSceneCount),
@@ -60,6 +62,8 @@ export function VideoOutputSourceCard({ variant, className = "" }: Props) {
   const tone =
     presentationId === "storyboard-reel"
       ? "border-teal-700/50 bg-teal-950/30 text-teal-50"
+      : presentationId === "digital-presenter"
+        ? "border-rose-700/50 bg-rose-950/30 text-rose-50"
       : presentationId === "animate-keyframe"
         ? "border-emerald-700/50 bg-emerald-950/30 text-emerald-50"
         : presentationId === "reference-motion"

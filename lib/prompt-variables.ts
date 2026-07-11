@@ -1,5 +1,14 @@
 import type { BrandProfile } from "@/lib/brand-profile";
 import { brandProfilePromptBlock } from "@/lib/brand-profile";
+import type { BrandKit } from "@/lib/brand-kit";
+import {
+  brandKitHasPromptContent,
+  brandKitLogoImagePromptBlock,
+  brandKitPromptBlock,
+  thirdPartyBrandGuardBlock,
+} from "@/lib/brand-merge";
+import type { ImageTextMode } from "@/lib/image-text-mode";
+import { TEXTLESS_IMAGE_GUARD } from "@/lib/image-text-mode";
 import type { PromotionMode } from "@/lib/promotion-mode";
 import type { WorkflowMode } from "@/lib/workflow-mode";
 import {
@@ -27,6 +36,11 @@ import type {
   StoryboardScenePlan,
   VideoStoryboardPlan,
 } from "@/lib/video-storyboard-types";
+import {
+  REFERENCE_CONTENT_REPLACE_LINE,
+  REFERENCE_STYLE_MATCH_LINE,
+  REFERENCE_TOPIC_GUARD_LINE,
+} from "@/lib/reference-style-transfer";
 import {
   applyArtStyleNegative,
   artStyleAvoidTail,
@@ -86,6 +100,7 @@ export type PromptVariables = {
   framing: SubjectFraming;
   extra?: string;
   artStyle?: ArtStyleId;
+  imageTextMode?: ImageTextMode;
 };
 
 const MARKET_HINTS: Record<PromptMarket, string> = {
@@ -135,6 +150,7 @@ export function buildPromptVariables(input: {
   framing: SubjectFraming;
   extra?: string;
   artStyle?: ArtStyleId;
+  imageTextMode?: ImageTextMode;
 }): PromptVariables {
   const product = input.product.trim();
   const sanitized = sanitizeOnImageCopy({
@@ -152,6 +168,7 @@ export function buildPromptVariables(input: {
     framing: input.framing,
     extra: input.extra?.trim(),
     artStyle: input.artStyle ?? DEFAULT_ART_STYLE,
+    imageTextMode: input.imageTextMode,
   };
 }
 
@@ -196,6 +213,21 @@ function joinParts(...parts: (string | undefined)[]): string {
     .replace(/\.\s*\./g, ".");
 }
 
+function brandPromptExtras(
+  brandProfile?: BrandProfile | null,
+  brandKit?: BrandKit | null,
+): string {
+  return joinParts(
+    brandProfile?.businessName
+      ? joinParts(
+          "Apply this brand DNA in art direction, palette, and typography tone.",
+          brandProfilePromptBlock(brandProfile),
+        )
+      : "",
+    brandKitHasPromptContent(brandKit) ? brandKitPromptBlock(brandKit!) : "",
+  );
+}
+
 /** Strong anchor so edit models keep the uploaded reference as the hero — not brand-template stock scenes. */
 function imageReferenceAnchorBlock(vars: PromptVariables): string {
   const label = vars.product?.trim() || "the uploaded reference";
@@ -217,6 +249,7 @@ function imageStyleOnlyReferenceBlock(compositionHint?: string): string {
     "Design a COMPLETELY NEW layout for this slide — different composition, grid, and hero arrangement from IMAGE 1.",
     "Replace ALL on-image text with the user's campaign copy in this prompt — never copy Chinese characters from IMAGE 1.",
     "If IMAGE 1 is a photograph, keep photorealistic product/lifestyle photography — no cartoon icons, line-art badges, or illustrated UI chips unless IMAGE 1 clearly contains them.",
+    thirdPartyBrandGuardBlock(),
     "Use the USER REFERENCE text block for extra palette/typography detail when present.",
     compositionHint ? `Required layout for this slide: ${compositionHint}.` : "",
     "Do NOT duplicate the reference hero arrangement or paste the same graphic structure on every card.",
@@ -358,6 +391,7 @@ export type ImagePromptMode =
   | "info-poster"
   | "brand-fit"
   | "model-wear"
+  | "ugc-presenter"
   | "service-promo"
   | "pricing-offer"
   | "website-launch"
@@ -547,8 +581,10 @@ export function buildTeachingCarouselSlideImagePrompt(
     visualStyleId?: VisualStyleId;
     referenceConcept?: boolean;
     carouselSlideRef?: CarouselSlideReferenceBrief;
+    brandKit?: BrandKit | null;
   },
 ): string {
+  const brandKit = options?.brandKit;
   const referenceConcept = Boolean(options?.referenceConcept);
   const slideVars: PromptVariables = {
     ...vars,
@@ -627,6 +663,7 @@ export function buildTeachingCarouselSlideImagePrompt(
     typographyHintForLocale(locale, slideLines),
     carouselSlideAvoidClause(vars.framing, vars.artStyle ?? DEFAULT_ART_STYLE),
     referenceImageMode === "style-only" ? vars.extra : undefined,
+    brandPromptExtras(brandProfile, brandKit),
   );
 }
 
@@ -648,6 +685,25 @@ export function buildConceptCinematicImagePrompt(vars: PromptVariables): string 
     MARKET_HINTS[vars.market],
     FRAMING_IMAGE[vars.framing],
     "Single 9:16 vertical cinematic still.",
+  );
+}
+
+/** UGC talking-head keyframe — presenter + product for HeyGen Avatar IV lip-sync. */
+export function buildUgcPresenterImagePrompt(vars: PromptVariables): string {
+  const product = vars.product?.trim() || "the product";
+  const theme = joinParts(vars.headline, vars.subline, vars.offer);
+  return joinParts(
+    imageReferenceAnchorBlock(vars),
+    `Create a photorealistic vertical UGC talking-head product ad for ${product}, 9:16.`,
+    `Friendly young presenter in a bright cozy home office — waist-up framing, face clearly visible, looking at camera.`,
+    buildModelWearPresentationHint(product, vars.framing),
+    `Keep the exact product from IMAGE 1 on wrist or in hand — same beads, colors, materials.`,
+    theme ? `Ad theme to reflect in mood (no on-screen text): ${theme}.` : "",
+    "Natural skin, realistic hands, soft window light, desk and plant in background, shallow depth of field.",
+    "Presenter ready to speak to camera — mid-gesture showing the product.",
+    MARKET_HINTS[vars.market],
+    vars.extra,
+    "No watermark, no subtitles, no social UI chrome.",
   );
 }
 
@@ -769,6 +825,7 @@ export function buildWizardImagePrompt(
   mode: ImagePromptMode,
   brandProfile?: BrandProfile | null,
   visualStyleId?: VisualStyleId,
+  brandKit?: BrandKit | null,
 ): string {
   if (mode === "reference-concept") {
     const shopHint = visualStyleId ? getVisualStyle(visualStyleId).promptHint : "";
@@ -776,19 +833,20 @@ export function buildWizardImagePrompt(
   }
   if (mode === "info-poster") return buildInfoPosterImagePrompt(vars);
   if (mode === "model-wear") return buildModelWearImagePrompt(vars);
+  if (mode === "ugc-presenter") return buildUgcPresenterImagePrompt(vars);
   if (mode === "service-promo") return buildServicePromoImagePrompt(vars);
   if (mode === "pricing-offer") return buildPricingOfferImagePrompt(vars);
   if (mode === "website-launch") return buildWebsiteLaunchImagePrompt(vars);
   if (mode === "concept-cinematic") return buildConceptCinematicImagePrompt(vars);
   if (mode === "concept-social") return buildConceptSocialImagePrompt(vars, brandProfile);
   if (mode === "brand-fit" && brandProfile?.businessName) {
-    return buildBrandFitImagePrompt(vars, brandProfile);
+    return joinParts(buildBrandFitImagePrompt(vars, brandProfile), brandPromptExtras(null, brandKit));
   }
   const styleHint =
     visualStyleId && getVisualStyle(visualStyleId).promptHint ?
       `Visual style direction: ${getVisualStyle(visualStyleId).promptHint}`
     : "";
-  return joinParts(buildPromoImagePrompt(vars, brandProfile), styleHint);
+  return joinParts(buildPromoImagePrompt(vars, brandProfile, brandKit), styleHint);
 }
 
 function shouldUseConceptSocialPrompt(
@@ -812,6 +870,7 @@ export function resolveImagePromptMode(
   if (shouldUseConceptSocialPrompt(visualStyleId, context)) return "concept-social";
   if (visualStyleId === "info-poster") return "info-poster";
   if (visualStyleId === "model-wear") return "model-wear";
+  if (visualStyleId === "ugc-presenter") return "ugc-presenter";
   if (visualStyleId === "service-promo") return "service-promo";
   if (visualStyleId === "pricing-offer") return "pricing-offer";
   if (visualStyleId === "website-launch") return "website-launch";
@@ -834,8 +893,12 @@ export function buildCampaignSlideImagePrompt(
     referenceConcept?: boolean;
     referenceImageMode?: ReferenceImageMode;
     carouselSlideRef?: CarouselSlideReferenceBrief;
+    brandKit?: BrandKit | null;
+    brandLogoImageIndex?: number | null;
   },
 ): string {
+  const brandKit = options?.brandKit;
+  const brandLogoImageIndex = options?.brandLogoImageIndex ?? null;
   const referenceImageMode =
     options?.referenceImageMode ?? (hasReferenceImage ? "clone" : "none");
   const referenceConcept = Boolean(
@@ -895,32 +958,56 @@ export function buildCampaignSlideImagePrompt(
             ? buildPricingOfferImagePrompt(slideVars)
             : mode === "website-launch"
               ? buildWebsiteLaunchImagePrompt(slideVars)
-              : buildPromoImagePrompt(slideVars, brandProfile);
+              : buildPromoImagePrompt(slideVars, brandProfile, brandKit);
+  const withBrand =
+    brandKitHasPromptContent(brandKit) && mode === "concept-social" && !referenceConcept
+      ? joinParts(base, brandKitPromptBlock(brandKit!))
+      : base;
+  const withLogo =
+    brandLogoImageIndex != null
+      ? joinParts(withBrand, brandKitLogoImagePromptBlock(brandLogoImageIndex))
+      : withBrand;
   return mode === "concept-social" && !referenceConcept
-    ? base
-    : joinParts(campaignBlock, base, carouselSlideAvoidClause(slideVars.framing, slideVars.artStyle ?? DEFAULT_ART_STYLE));
+    ? withLogo
+    : joinParts(campaignBlock, withLogo, carouselSlideAvoidClause(slideVars.framing, slideVars.artStyle ?? DEFAULT_ART_STYLE));
 }
 
 /** Nano Banana: new promotional image from product photo + brief (not a template paste). */
 export function buildPromoImagePrompt(
   vars: PromptVariables,
   brandProfile?: BrandProfile | null,
+  brandKit?: BrandKit | null,
 ): string {
   const product = vars.product?.trim() || "the product";
   const theme = joinParts(vars.headline, vars.subline, vars.offer);
   const stylized = vars.artStyle && vars.artStyle !== "realistic";
+  if (vars.imageTextMode === "textless") {
+    return joinParts(
+      artStyleMandatoryLead(vars.artStyle),
+      imageReferenceAnchorBlock(vars),
+      stylized
+        ? `Create a brand-new vertical social media ILLUSTRATION scene for ${product} — art medium only, no readable text.`
+        : `Create a brand-new vertical social media product scene for ${product}.`,
+      brandPromptExtras(brandProfile, brandKit),
+      vars.business ? `Brand / shop: ${vars.business}.` : "",
+      theme ? `Campaign mood only (do NOT render as text): ${theme}.` : "",
+      stylized ? artStylePlannerHint(vars.artStyle) : promoArtDirectionHint(vars),
+      artStyleImageClause(vars.artStyle),
+      TEXTLESS_IMAGE_GUARD,
+      FRAMING_IMAGE[vars.framing],
+      MARKET_HINTS[vars.market],
+      artStyleAvoidTail(vars.artStyle),
+      vars.extra,
+      "Vertical ad background plate, no Instagram/FB UI chrome.",
+    );
+  }
   return joinParts(
     artStyleMandatoryLead(vars.artStyle),
     imageReferenceAnchorBlock(vars),
     stylized
       ? `Create a brand-new vertical social media ILLUSTRATION/ad for ${product} — entire composition in the chosen art medium.`
       : `Create a brand-new vertical social media advertisement for ${product}.`,
-    brandProfile?.businessName
-      ? joinParts(
-          "Apply this brand DNA in art direction, palette, and typography tone.",
-          brandProfilePromptBlock(brandProfile),
-        )
-      : "",
+    brandPromptExtras(brandProfile, brandKit),
     vars.business ? `Brand / shop: ${vars.business}.` : "",
     theme ? `Campaign message: ${theme}.` : "",
     `Remove outdated marketing text from IMAGE 1 where new copy replaces it.`,
@@ -933,7 +1020,7 @@ export function buildPromoImagePrompt(
     stylized
       ? `The result must be a finished illustrated ad with readable copy — NOT photorealistic photography.`
       : `The result must be a finished social ad with readable copy — not a plain product-only beauty shot.`,
-    `Do NOT paste the product onto a generic template frame. Do NOT add watermarks, @handles, or third-party logos.`,
+    `Do NOT paste the product onto a generic template frame. Do NOT add watermarks, @handles, or any company logo/wordmark unless it is the user's own brand from the brief or attached brand kit.`,
     MARKET_HINTS[vars.market],
     FRAMING_IMAGE[vars.framing],
     artStyleAvoidTail(vars.artStyle),
@@ -975,7 +1062,7 @@ export function buildReferenceConceptImagePrompt(
     `HOW TO USE IMAGE 1 (reference ad) — three layers:`,
     `LAYER A — KEEP (design language): layout structure, composition rhythm, graphic component types (badges, frames, accent shapes, hand-drawn or elegant decoration style), typography hierarchy style, and product staging pose (hand / wrist / flat lay / circle hero). A viewer should recognize the same ad design family as IMAGE 1.`,
     `LAYER B — ADAPT (venue and light): background, venue, surface, and lighting should suit IMAGE 2's product colors and the shop/campaign mood — they may differ from IMAGE 1. Do not clone IMAGE 1's exact location or lighting if it clashes with the new product; make the environment feel native to this product and shop.`,
-    `LAYER C — REPLACE (content): use IMAGE 2's exact product (colors, materials, shape). All readable headlines and body copy must come from the campaign brief below — never reuse IMAGE 1 product names, selling lines, zodiac/星座 hooks, or Chinese characters from IMAGE 1. Do not copy logos, watermarks, or social UI from IMAGE 1. Never render English planning notes or carousel-structure meta-text on the image.`,
+    `LAYER C — REPLACE (content): use IMAGE 2's exact product (colors, materials, shape). All readable headlines and body copy must come from the campaign brief below — never reuse IMAGE 1 product names, selling lines, zodiac/星座 hooks, or Chinese characters from IMAGE 1. IMAGE 1 belongs to another company — do not copy its logos, wordmarks, store names, sponsor marks, @handles, or watermarks. Never render English planning notes or carousel-structure meta-text on the image.`,
     `IMAGE 2 = the real product hero. Always show IMAGE 2's item — never the product from IMAGE 1. If the campaign product name disagrees with IMAGE 2, trust IMAGE 2 pixels for product category, shape, and materials.`,
     shopBlock,
     brief ? `Campaign copy (all on-image text): ${brief}.` : "",
@@ -1072,6 +1159,20 @@ export function buildImageToVideoPrompt(
   return buildWizardVideoPrompt(templateId, vars, opts);
 }
 
+/** Storyboard scene: IMAGE 1 style shell + user topic content (reference topic may differ). */
+function imageStoryboardStyleRefBlock(plan: VideoStoryboardPlan): string {
+  return joinParts(
+    "REFERENCE STYLE TRANSFER — IMAGE 1 is the reference ad/reel frame",
+    REFERENCE_STYLE_MATCH_LINE,
+    REFERENCE_CONTENT_REPLACE_LINE,
+    REFERENCE_TOPIC_GUARD_LINE,
+    "Adapt the reference beat layout rhythm for this scene — same composition grammar family as IMAGE 1, not a generic stock layout.",
+    "If IMAGE 1 is illustrated/3D/meme/cartoon, do NOT default to generic photorealistic lifestyle photography.",
+    plan.visualDirection ? `Locked series aesthetic: ${plan.visualDirection}.` : "",
+    thirdPartyBrandGuardBlock(),
+  );
+}
+
 /** Nano Banana still for one storyboard scene (product from IMAGE 1). */
 export function buildStoryboardSceneImagePrompt(
   scene: StoryboardScenePlan,
@@ -1080,12 +1181,16 @@ export function buildStoryboardSceneImagePrompt(
   options?: {
     referenceConcept?: boolean;
     conceptTextOnly?: boolean;
+    storyboardStyleRef?: boolean;
     visualStyleId?: VisualStyleId;
     brandProfile?: BrandProfile | null;
+    brandKit?: BrandKit | null;
   },
 ): string {
+  const brandKit = options?.brandKit;
   const referenceConcept = Boolean(options?.referenceConcept);
   const conceptTextOnly = Boolean(options?.conceptTextOnly);
+  const storyboardStyleRef = Boolean(options?.storyboardStyleRef);
   const sceneVars: PromptVariables = {
     ...vars,
     extra: [vars.extra, scene.imagePrompt].filter(Boolean).join(" | "),
@@ -1127,6 +1232,26 @@ export function buildStoryboardSceneImagePrompt(
         : "9:16 vertical social ad still with readable campaign copy from brief — no watermark, no social UI.",
     );
   }
+  if (storyboardStyleRef) {
+    return joinParts(
+      artStyleMandatoryLead(vars.artStyle),
+      `Storyboard still ${scene.imageIndex}/${plan.scenes.length}.`,
+      plan.theme ? `User story theme (content lane): ${plan.theme}.` : "",
+      plan.visualDirection ? `Series look (from reference reel): ${plan.visualDirection}.` : "",
+      `Scene role: ${scene.role}.`,
+      scene.imagePrompt ? `Scene action: ${scene.imagePrompt}.` : "",
+      imageStoryboardStyleRefBlock(plan),
+      sceneCopy ? `ON-IMAGE COPY (this scene only): ${sceneCopy}` : "",
+      promoTypographyHint(sceneVars, true),
+      artStyleImageClause(vars.artStyle),
+      artStyleAvoidTail(vars.artStyle),
+      "Subject upright, head at top of frame — never rotate 90°.",
+      MARKET_HINTS[sceneVars.market],
+      FRAMING_IMAGE[sceneVars.framing],
+      vars.extra,
+      "9:16 vertical, no watermark, no social UI.",
+    );
+  }
   if (conceptTextOnly) {
     return joinParts(
       artStyleMandatoryLead(vars.artStyle),
@@ -1136,7 +1261,7 @@ export function buildStoryboardSceneImagePrompt(
       `Scene role: ${scene.role}.`,
       scene.imagePrompt,
       sceneCopy ? `ON-IMAGE COPY (this scene only): ${sceneCopy}` : "",
-      "Cinematic concept short — match reference reel pacing; original visuals for the user's message.",
+      "Cinematic concept short — match reference reel pacing and visual style family; user topic for content only.",
       "No logos, watermarks, or social UI. 9:16 vertical.",
       artStyleImageClause(vars.artStyle),
       artStyleAvoidTail(vars.artStyle),
@@ -1161,6 +1286,7 @@ export function buildStoryboardSceneImagePrompt(
     MARKET_HINTS[vars.market],
     FRAMING_IMAGE[vars.framing],
     vars.extra,
+    brandPromptExtras(options?.brandProfile, brandKit),
     "9:16 vertical, no readable text, no watermark, no social UI.",
   );
 }

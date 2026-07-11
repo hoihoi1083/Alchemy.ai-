@@ -11,7 +11,11 @@ export type CaptionStylePresetId =
   | "gold-luxury"
   | "green-fresh"
   | "outline-only"
-  | "tiktok-pop";
+  | "tiktok-pop"
+  | "carousel-title"
+  | "carousel-white"
+  | "carousel-body"
+  | "carousel-cta";
 
 export type CaptionBurnStyle = {
   preset: CaptionStylePresetId;
@@ -146,6 +150,46 @@ export const CAPTION_STYLE_PRESETS: Record<
     fontFamily: "NotoDisplay",
     fontSizeScale: 1.12,
     strokeWidthScale: 1.25,
+  },
+  "carousel-title": {
+    labelEn: "Carousel title (brown)",
+    labelZh: "輪播主標題（啡色）",
+    fill: "#4a3728",
+    stroke: "transparent",
+    fontWeight: 800,
+    fontFamily: "NotoDisplay",
+    fontSizeScale: 1.15,
+    strokeWidthScale: 0,
+  },
+  "carousel-white": {
+    labelEn: "White on capsule",
+    labelZh: "膠囊白字",
+    fill: "#ffffff",
+    stroke: "transparent",
+    fontWeight: 700,
+    fontFamily: "NotoBody",
+    fontSizeScale: 0.95,
+    strokeWidthScale: 0,
+  },
+  "carousel-body": {
+    labelEn: "Body copy (brown)",
+    labelZh: "內文（啡色）",
+    fill: "#5c4033",
+    stroke: "transparent",
+    fontWeight: 600,
+    fontFamily: "NotoBody",
+    fontSizeScale: 0.88,
+    strokeWidthScale: 0,
+  },
+  "carousel-cta": {
+    labelEn: "CTA button text",
+    labelZh: "按鈕文字",
+    fill: "#5c4033",
+    stroke: "transparent",
+    fontWeight: 600,
+    fontFamily: "NotoBody",
+    fontSizeScale: 0.9,
+    strokeWidthScale: 0,
   },
 };
 

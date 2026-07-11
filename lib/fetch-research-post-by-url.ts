@@ -4,11 +4,12 @@ import {
   fetchJustOneApi,
   hasJustOneApiConfigured,
 } from "@/lib/justoneapi-client";
+import { finalizeXhsPost, xhsCoverUrlLooksFetchable } from "@/lib/research-cover-url";
 import {
   extractXhsNoteFromDetailResponse,
   mapRawPlatformPost,
-  xhsCoverUrlLooksFetchable,
 } from "@/lib/justoneapi-platform-search";
+import { XHS_NOTE_DETAIL_PATHS, xhsNoteDetailParams } from "@/lib/xhs-note-detail";
 import {
   detectPlatformFromPostUrl,
   directPostUrlSupported,
@@ -25,13 +26,7 @@ import {
 import type { ContentResearchMediaFilter } from "@/lib/content-research-types";
 
 /** Prefer v1/v4 (signed rednotecdn images). v5 is flaky; v7 often returns dead xhscdn URLs. */
-const XHS_DETAIL_PATHS = [
-  "/api/xiaohongshu/get-note-detail/v1",
-  "/api/xiaohongshu/get-note-detail/v4",
-  "/api/xiaohongshu/get-note-detail/v2",
-  "/api/xiaohongshu/get-note-detail/v5",
-  "/api/xiaohongshu/get-note-detail/v7",
-] as const;
+const XHS_DETAIL_PATHS = XHS_NOTE_DETAIL_PATHS;
 
 function mapXhsDetailNote(
   note: Record<string, unknown>,
@@ -55,8 +50,7 @@ function mapXhsDetailNote(
 
 async function fetchXhsPostByNoteId(noteId: string, canonicalUrl: string): Promise<ContentResearchPost> {
   const shareHints = xhsShareHintsFromUrl(canonicalUrl);
-  const detailParams: Record<string, string> = { noteId };
-  if (canonicalUrl) detailParams.noteUrl = canonicalUrl;
+  const detailParams = xhsNoteDetailParams(noteId, canonicalUrl);
 
   let lastEmpty = false;
   let fallback: ContentResearchPost | null = null;
@@ -75,11 +69,11 @@ async function fetchXhsPostByNoteId(noteId: string, canonicalUrl: string): Promi
     const normalized = { ...post, url: post.url || canonicalUrl, platform: "xiaohongshu" as const };
     if (postHasImageMedia(normalized) && !fallback) fallback = normalized;
     if (xhsCoverUrlLooksFetchable(normalized.coverImageUrl)) {
-      return normalized;
+      return finalizeXhsPost(normalized);
     }
   }
 
-  if (fallback) return fallback;
+  if (fallback) return finalizeXhsPost(fallback);
 
   if (lastEmpty) {
     throw new Error(

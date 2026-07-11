@@ -2,6 +2,7 @@ import type { ContentPlatform } from "@/lib/content-research-types";
 
 const ALLOWED_HOSTS = [
   "xhscdn.com",
+  "rednotecdn.com",
   "xiaohongshu.com",
   "ci.xiaohongshu.com",
   "sns-video",

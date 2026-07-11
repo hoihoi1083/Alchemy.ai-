@@ -10,11 +10,13 @@ export type VideoGenerationKind =
   | "text-to-video"
   | "reference-r2v"
   | "multi-angle-r2v"
+  | "digital-presenter"
   | "image-to-video";
 
 export type ResolveVideoGenerationKindInput = {
   usesCompositor: boolean;
   isStoryboardOutput: boolean;
+  isUgcPresenterOutput: boolean;
   shouldCinematicStitch: boolean;
   isConceptCinematicSingleOutput: boolean;
   cinematicSceneCount: number;
@@ -32,6 +34,7 @@ export function resolveVideoGenerationKind(
 ): VideoGenerationKind {
   if (input.usesCompositor) return "compositor";
   if (input.isStoryboardOutput) return "storyboard";
+  if (input.isUgcPresenterOutput) return "digital-presenter";
   if (input.shouldCinematicStitch) return "cinematic-stitch";
   if (
     input.isConceptCinematicSingleOutput &&

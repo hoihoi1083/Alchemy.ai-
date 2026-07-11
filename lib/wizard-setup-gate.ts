@@ -46,6 +46,22 @@ export function evaluateProceedToImageGate(input: {
     return null;
   }
 
+  if (
+    input.isStoryboardOutput &&
+    input.promotionMode === "concept" &&
+    !input.effectivePromoteName.trim()
+  ) {
+    return "need_headline";
+  }
+
+  if (
+    input.isStoryboardOutput &&
+    input.promotionMode === "physical" &&
+    !input.effectivePromoteName.trim()
+  ) {
+    return "need_product_name";
+  }
+
   const researchImage = isContentResearchImagePath(
     input.promptExtra,
     input.workflowMode,
